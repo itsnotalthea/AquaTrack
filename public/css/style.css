@@ -1,0 +1,129 @@
+:root {
+  --ink: #3d4ca6;
+  --wave: #5a6fe0;
+  --sky: #659cff;
+  --mist: #9bbbff;
+  --foam: #eef4ff;
+  --font-px: 'Silkscreen', monospace;
+}
+
+body {
+  font-family: 'Nunito Sans', sans-serif;
+  color: #1f2a5c;
+  background: #fff;
+  line-height: 1.65;
+}
+
+h1,
+h2,
+h3,
+h4,
+.brand-px {
+  font-family: var(--font-px);
+  color: var(--ink);
+  letter-spacing: 0.5px;
+}
+
+a {
+  color: var(--wave);
+}
+
+.navbar {
+  background: #fff;
+  border-bottom: 4px solid var(--ink);
+}
+
+.navbar .nav-link {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.navbar .nav-link.active,
+.navbar .nav-link:hover {
+  color: var(--sky);
+}
+
+.brand-px {
+  font-size: 1.25rem;
+}
+
+.btn-aqua {
+  background: var(--ink);
+  color: #fff;
+  border: 0;
+  border-radius: 0;
+  box-shadow: 4px 4px 0 var(--mist);
+  font-weight: 700;
+}
+
+.btn-aqua:hover {
+  background: var(--wave);
+  color: #fff;
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 var(--mist);
+}
+
+.hero {
+  background: var(--sky);
+  position: relative;
+  overflow: hidden;
+  color: #fff;
+  padding: 5rem 0;
+}
+
+.hero h1 {
+  color: #fff;
+  font-size: clamp(2rem, 5vw, 3.6rem);
+  line-height: 1.1;
+}
+
+.hero img {
+  width: 100%;
+  max-width: 380px;
+  image-rendering: pixelated;
+  animation: bob 4s steps(8) infinite;
+}
+
+@keyframes bob {
+  50% {
+    transform: translateY(-14px);
+  }
+}
+
+.bubble {
+  position: absolute;
+  bottom: -30px;
+  background: rgba(255, 255, 255, 0.55);
+  animation: rise linear infinite;
+}
+
+@keyframes rise {
+  to {
+    transform: translateY(-110vh);
+  }
+}
+
+.aq-water {
+  animation: aq-swell 4.2s ease-in-out infinite;
+}
+
+@keyframes aq-swell {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(1.4px);
+  }
+}
+
+.aq-wave {
+  animation: aq-wave-slide 3.6s linear infinite;
+}
+
+@keyframes aq-wave-slide {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100px
