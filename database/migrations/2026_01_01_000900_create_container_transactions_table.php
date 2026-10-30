@@ -12,8 +12,10 @@ return new class extends Migration
             $table->id();
             $table->foreignId('customer_id')->constrained('users')->cascadeOnDelete();
             $table->foreignId('order_id')->nullable()->constrained()->nullOnDelete();
-            $table->enum('type', ['swap', 'return', 'purchase']);
+            $table->enum('type', ['swap', 'exchange_out', 'return', 'purchase', 'loss', 'adjustment']);
             $table->unsignedInteger('quantity');
+            $table->foreignId('recorded_by')->nullable()->constrained('users')->nullOnDelete();
+            $table->text('notes')->nullable();
             $table->timestamps();
         });
     }

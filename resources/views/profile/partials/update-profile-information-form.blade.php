@@ -54,8 +54,22 @@
                 @error('subdivision') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
             </div>
             <div class="col-md-6">
+                <label class="form-label" for="barangay">Barangay</label>
+                <select id="barangay" class="form-select" name="barangay" required>
+                    <option value="">Choose your barangay</option>
+                    @foreach (\App\Models\Barangay::districts() as $district => $barangays)
+                        <optgroup label="{{ $district }}">
+                            @foreach ($barangays as $value => $label)
+                                <option value="{{ $value }}" @selected(old('barangay', $user->barangay) === $value)>{{ $label }}</option>
+                            @endforeach
+                        </optgroup>
+                    @endforeach
+                </select>
+                @error('barangay') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+            </div>
+            <div class="col-md-6">
                 <label class="form-label" for="city">City</label>
-                <input id="city" class="form-control" type="text" name="city" value="{{ old('city', $user->city) }}">
+                <input id="city" class="form-control" type="text" name="city" value="Marikina City" readonly>
                 @error('city') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
             </div>
         </div>

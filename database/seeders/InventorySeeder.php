@@ -25,6 +25,7 @@ class InventorySeeder extends Seeder
         $items = [
             ['name' => 'new_container', 'quantity' => 30, 'threshold' => 10],
             ['name' => 'dispenser_available', 'quantity' => 12, 'threshold' => 5],
+            ['name' => 'dispenser_out_for_delivery', 'quantity' => 0, 'threshold' => 0],
             ['name' => 'dispenser_rented', 'quantity' => 8, 'threshold' => 0],
             ['name' => 'dispenser_maintenance', 'quantity' => 2, 'threshold' => 3],
             ['name' => 'dispenser_lost', 'quantity' => 1, 'threshold' => 0],

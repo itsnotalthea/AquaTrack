@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\Barangay;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
@@ -27,15 +28,19 @@ class RegisteredUserController extends Controller
             'last_name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', Rule::unique(User::class)],
             'mobile' => ['required', 'string', 'regex:/^09\d{9}$/'],
-            'password' => ['required', 'string', 'min:5', 'confirmed', Rules\Password::defaults()],
+            'password' => ['required', 'string', 'confirmed', Rules\Password::defaults()],
             'house_no' => ['required', 'string', 'max:50'],
             'street' => ['required', 'string', 'max:150'],
             'subdivision' => ['nullable', 'string', 'max:150'],
+            'barangay' => ['required', 'string', Rule::in(Barangay::names())],
             'city' => ['required', 'string', 'max:100'],
         ], [
             'mobile.regex' => 'Mobile must be 11 digits starting with 09.',
-            'password.min' => 'Password must be at least 5 characters.',
+            'barangay.in' => 'Choose a barangay in Marikina City.',
+            'password.min' => 'Password must be at least 8 characters.',
         ]);
+
+        $validated['email'] = strtolower(trim($validated['email']));
 
         $user = User::create($validated + ['role' => User::ROLE_CUSTOMER]);
 

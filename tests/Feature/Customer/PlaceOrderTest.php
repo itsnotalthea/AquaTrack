@@ -8,6 +8,8 @@ use App\Models\Reminder;
 use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class PlaceOrderTest extends TestCase
@@ -184,6 +186,63 @@ class PlaceOrderTest extends TestCase
         $this->actingAs($this->customer())
             ->post('/customer/orders', $this->payload(['product_id' => $inactive->id]))
             ->assertSessionHasErrors('product_id');
+    }
+
+    public function test_gcash_and_maya_orders_require_a_reference_number(): void
+    {
+        $this->actingAs($this->customer())
+            ->post('/customer/orders', $this->payload(['payment_method' => 'gcash']))
+            ->assertSessionHasErrors('payment_reference');
+
+        $this->actingAs($this->customer())
+            ->post('/customer/orders', $this->payload(['payment_method' => 'maya']))
+            ->assertSessionHasErrors('payment_reference');
+
+        $this->assertSame(0, Order::count());
+    }
+
+    public function test_gcash_order_stores_the_reference_number(): void
+    {
+        $this->actingAs($this->customer())->post('/customer/orders', $this->payload([
+            'payment_method' => 'gcash',
+            'payment_reference' => 'GC-123456789',
+        ]))->assertSessionHasNoErrors();
+
+        $order = Order::first();
+
+        $this->assertSame('gcash', $order->payment_method);
+        $this->assertSame('GC-123456789', $order->payment_reference);
+        $this->assertNull($order->payment_proof_path);
+    }
+
+    public function test_optional_payment_proof_is_stored_for_ewallet_orders(): void
+    {
+        Storage::fake('public');
+
+        $path = tempnam(sys_get_temp_dir(), 'proof');
+        file_put_contents($path, base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='));
+
+        $proof = new UploadedFile($path, 'receipt.png', 'image/png', null, true);
+
+        $this->actingAs($this->customer())->post('/customer/orders', $this->payload([
+            'payment_method' => 'maya',
+            'payment_reference' => 'MY-987654321',
+            'payment_proof' => $proof,
+        ]))->assertSessionHasNoErrors();
+
+        $order = Order::first();
+
+        $this->assertNotNull($order->payment_proof_path);
+        Storage::disk('public')->assertExists($order->payment_proof_path);
+    }
+
+    public function test_cash_orders_do_not_require_a_reference_number(): void
+    {
+        $this->actingAs($this->customer())->post('/customer/orders', $this->payload([
+            'payment_method' => 'cash',
+        ]))->assertSessionHasNoErrors();
+
+        $this->assertNull(Order::first()->payment_reference);
     }
 
     public function test_weekly_reminder_opt_in_creates_a_reminder_row(): void

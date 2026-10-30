@@ -4,14 +4,15 @@ namespace Tests\Feature;
 
 use App\Models\Product;
 use App\Models\Setting;
+use App\Models\User;
 use Database\Seeders\ProductSeeder;
 use Database\Seeders\SettingSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * The order form is the price source of truth. These keep the marketing copy
- * on /services from drifting away from it again.
+ * The customer order screen is the live price source; Services remains static
+ * so marketing pages do not require a database connection.
  */
 class PricingConsistencyTest extends TestCase
 {
@@ -25,32 +26,32 @@ class PricingConsistencyTest extends TestCase
         $this->seed(SettingSeeder::class);
     }
 
-    public function test_service_cards_match_the_product_prices(): void
+    public function test_services_page_describes_offerings_without_live_catalog_data(): void
     {
-        $refill = Product::where('unit', Product::UNIT_GALLON)->first();
-        $container = Product::where('unit', Product::UNIT_PIECE)->first();
-        $dispenser = Product::where('unit', Product::UNIT_MONTH)->first();
-
         $html = $this->get('/services')->assertOk()->getContent();
 
-        $this->assertStringContainsString('₱'.number_format((float) $refill->price, 0).' per gallon', $html);
-        $this->assertStringContainsString('₱'.number_format((float) $container->price, 0).' each', $html);
-        $this->assertStringContainsString('₱'.number_format((float) $dispenser->price, 0).' per month', $html);
+        $this->assertStringContainsString('Water refills', $html);
+        $this->assertStringContainsString('New containers', $html);
+        $this->assertStringContainsString('Dispenser rentals', $html);
+        $this->assertStringContainsString('Current prices and availability are shown when you place an order.', $html);
+
+        foreach (Product::all() as $product) {
+            $this->assertStringNotContainsString($product->name, $html);
+        }
     }
 
-    public function test_service_cards_match_the_delivery_fee_setting(): void
+    public function test_services_page_defers_delivery_fee_to_checkout(): void
     {
         $html = $this->get('/services')->assertOk()->getContent();
 
-        $this->assertStringContainsString(
-            '₱'.number_format(Setting::deliveryFee(), 0).' delivery fee per order',
-            $html
-        );
+        $this->assertStringContainsString('Any delivery fee is shown before you submit your order.', $html);
+        $this->assertStringNotContainsString('₱'.number_format(Setting::deliveryFee(), 2).' per order', $html);
     }
 
     public function test_order_form_options_match_the_catalog(): void
     {
-        $html = $this->get('/services')->assertOk()->getContent();
+        $customer = User::factory()->customer()->create();
+        $html = $this->actingAs($customer)->get('/customer/orders/create')->assertOk()->getContent();
 
         foreach (Product::orderBy('name')->get() as $product) {
             $this->assertStringContainsString(

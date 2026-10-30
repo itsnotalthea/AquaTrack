@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\Barangay;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -29,6 +30,7 @@ class UserFactory extends Factory
             'house_no' => (string) fake()->numberBetween(1, 250),
             'street' => fake()->streetName(),
             'subdivision' => fake()->citySuffix(),
+            'barangay' => fake()->randomElement(Barangay::names()),
             'city' => 'Marikina City',
             'remember_token' => Str::random(10),
         ];

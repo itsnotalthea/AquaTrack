@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Barangay;
 use App\Models\User;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -23,6 +24,7 @@ class ProfileUpdateRequest extends FormRequest
             'house_no' => ['nullable', 'string', 'max:50'],
             'street' => ['nullable', 'string', 'max:150'],
             'subdivision' => ['nullable', 'string', 'max:150'],
+            'barangay' => ['required', 'string', Rule::in(Barangay::names())],
             'city' => ['nullable', 'string', 'max:100'],
             'email' => [
                 'required',

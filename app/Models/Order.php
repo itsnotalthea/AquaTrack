@@ -28,6 +28,8 @@ class Order extends Model
 
     public const STATUS_COMPLETED = 'completed';
 
+    public const STATUS_DELIVERY_FAILED = 'delivery_failed';
+
     public const STATUS_CANCELLED = 'cancelled';
 
     public const TYPE_DELIVERY = 'delivery';
@@ -38,25 +40,38 @@ class Order extends Model
         'customer_id',
         'order_type',
         'status',
+        'subtotal',
+        'delivery_fee',
         'total_amount',
         'payment_status',
         'payment_method',
+        'payment_reference',
+        'payment_proof_path',
         'delivery_address',
         'barangay',
         'preferred_date',
         'notes',
         'container_swap',
         'container_swap_qty',
+        'returned_containers',
+        'stock_dispatched_at',
+        'failed_at',
+        'failure_reason',
         'weekly_reminder',
     ];
 
     protected function casts(): array
     {
         return [
+            'subtotal' => 'decimal:2',
+            'delivery_fee' => 'decimal:2',
             'total_amount' => 'decimal:2',
             'preferred_date' => 'date',
             'container_swap' => 'boolean',
             'container_swap_qty' => 'integer',
+            'returned_containers' => 'integer',
+            'stock_dispatched_at' => 'datetime',
+            'failed_at' => 'datetime',
             'weekly_reminder' => 'boolean',
         ];
     }
@@ -86,6 +101,16 @@ class Order extends Model
         return $this->hasMany(ContainerTransaction::class);
     }
 
+    public function statusLogs(): HasMany
+    {
+        return $this->hasMany(OrderStatusLog::class)->latest();
+    }
+
+    public function dispenserRentals(): HasMany
+    {
+        return $this->hasMany(DispenserRental::class);
+    }
+
     public function isDelivery(): bool
     {
         return $this->order_type === self::TYPE_DELIVERY;
@@ -99,7 +124,7 @@ class Order extends Model
     // cancel is only allowed before preparation starts
     public function canBeCancelled(): bool
     {
-        return in_array($this->status, [self::STATUS_PENDING, self::STATUS_CONFIRMED], true);
+        return in_array($this->status, [self::STATUS_PENDING, self::STATUS_CONFIRMED, self::STATUS_DELIVERY_FAILED], true);
     }
 
     public function allowedTransitions(): array
@@ -109,8 +134,9 @@ class Order extends Model
                 self::STATUS_PENDING => [self::STATUS_CONFIRMED, self::STATUS_CANCELLED],
                 self::STATUS_CONFIRMED => [self::STATUS_PREPARING, self::STATUS_CANCELLED],
                 self::STATUS_PREPARING => [self::STATUS_OUT_FOR_DELIVERY],
-                self::STATUS_OUT_FOR_DELIVERY => [self::STATUS_DELIVERED],
+                self::STATUS_OUT_FOR_DELIVERY => [self::STATUS_DELIVERED, self::STATUS_DELIVERY_FAILED],
                 self::STATUS_DELIVERED => [self::STATUS_COMPLETED],
+                self::STATUS_DELIVERY_FAILED => [self::STATUS_CONFIRMED, self::STATUS_CANCELLED],
             ]
             : [
                 self::STATUS_PENDING => [self::STATUS_CONFIRMED, self::STATUS_CANCELLED],

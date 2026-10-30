@@ -16,10 +16,24 @@ class DashboardController extends Controller
         $driverId = $request->user()->id;
 
         $mine = Delivery::where('driver_id', $driverId);
+        $monthStart = now()->startOfMonth();
+        $calendarStart = $monthStart->copy()->startOfWeek();
 
         $containers = ContainerInventory::orderBy('id')->get()->keyBy('status');
         $full = (int) ($containers[ContainerInventory::AT_STATION_FULL]->quantity ?? 0);
         $empty = (int) ($containers[ContainerInventory::AT_STATION_EMPTY]->quantity ?? 0);
+
+        $calendarDays = collect(range(0, 41))->map(function (int $offset) use ($calendarStart, $mine): array {
+            $date = $calendarStart->copy()->addDays($offset);
+
+            return [
+                'date' => $date,
+                'day' => $date->day,
+                'thisMonth' => $date->month === now()->month,
+                'isToday' => $date->isToday(),
+                'count' => (clone $mine)->whereDate('created_at', $date->toDateString())->count(),
+            ];
+        })->chunk(7);
 
         return view('driver.dashboard', [
             'active' => (clone $mine)->whereIn('status', [
@@ -39,6 +53,8 @@ class DashboardController extends Controller
                 ->whereHas('delivery', fn ($q) => $q->where('driver_id', $driverId))
                 ->count(),
             'fillRatio' => ($full + $empty) > 0 ? $full / ($full + $empty) : 0.0,
+            'calendarDays' => $calendarDays,
+            'monthLabel' => $monthStart->translatedFormat('F Y'),
         ]);
     }
 

@@ -25,6 +25,6 @@ class InventoryItem extends Model
 
     public function isLowStock(): bool
     {
-        return $this->quantity <= $this->threshold;
+        return $this->threshold > 0 && $this->quantity <= $this->threshold;
     }
 }

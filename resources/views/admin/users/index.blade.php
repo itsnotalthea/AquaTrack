@@ -4,7 +4,7 @@
     <div class="container section">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
             <h1 class="mb-0">Users</h1>
-            <a class="btn btn-aqua px-3" href="{{ route('admin.users.create') }}">New internal user</a>
+            <a class="btn btn-aqua px-3" href="{{ route('admin.users.create') }}"><x-icon name="user-plus" /> New internal user</a>
         </div>
 
         @if (session('status')) <div class="alert alert-success rounded-0">{{ session('status') }}</div> @endif
@@ -12,7 +12,10 @@
 
         <form method="GET" class="row g-2 mb-3">
             <div class="col-md-4">
-                <input class="form-control" type="search" name="q" value="{{ request('q') }}" placeholder="Search name or email">
+                <div class="search-wrap">
+                    <x-icon name="search" />
+                    <input class="form-control" type="search" name="q" value="{{ request('q') }}" placeholder="Search name or email">
+                </div>
             </div>
             <div class="col-md-3">
                 <select class="form-select" name="role">
@@ -49,10 +52,10 @@
                                     @if (in_array($user->role, $internalRoles, true))
                                         <a class="btn btn-sm btn-aqua px-2" href="{{ route('admin.users.edit', $user) }}">Edit</a>
                                         <form class="d-inline" method="POST" action="{{ route('admin.users.destroy', $user) }}"
-                                              onsubmit="return confirm('Delete this user?')">
+                                              data-confirm="Delete {{ $user->name }}? This cannot be undone.">
                                             @csrf
                                             @method('DELETE')
-                                            <button class="btn btn-sm btn-danger rounded-0 px-2" type="submit">Delete</button>
+                                            <button class="btn btn-sm btn-danger px-2" type="submit">Delete</button>
                                         </form>
                                     @else
                                         <span class="small text-muted">Self-managed</span>

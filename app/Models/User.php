@@ -42,6 +42,13 @@ class User extends Authenticatable
         'remember_token',
     ];
 
+    protected static function booted(): void
+    {
+        static::saving(function (self $user): void {
+            $user->email = strtolower(trim($user->email ?? ''));
+        });
+    }
+
     protected function casts(): array
     {
         return [

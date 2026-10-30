@@ -11,12 +11,20 @@ class InventoryLog extends Model
         'change',
         'reason',
         'reference_id',
+        'reference_type',
+        'user_id',
+        'from_status',
+        'to_status',
+        'quantity_before',
+        'quantity_after',
     ];
 
     protected function casts(): array
     {
         return [
             'change' => 'integer',
+            'quantity_before' => 'integer',
+            'quantity_after' => 'integer',
         ];
     }
 }

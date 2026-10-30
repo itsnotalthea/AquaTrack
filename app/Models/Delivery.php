@@ -16,6 +16,8 @@ class Delivery extends Model
 
     public const STATUS_DELIVERED = 'delivered';
 
+    public const STATUS_FAILED = 'failed';
+
     public const STATUS_RETURNED_TO_STATION = 'returned_to_station';
 
     // display order for a driver's run list
@@ -23,6 +25,7 @@ class Delivery extends Model
         self::STATUS_ASSIGNED,
         self::STATUS_IN_TRANSIT,
         self::STATUS_DELIVERED,
+        self::STATUS_FAILED,
         self::STATUS_RETURNED_TO_STATION,
     ];
 
@@ -31,6 +34,8 @@ class Delivery extends Model
         'driver_id',
         'status',
         'delivered_at',
+        'failed_at',
+        'failure_reason',
         'returned_containers',
     ];
 
@@ -38,6 +43,7 @@ class Delivery extends Model
     {
         return [
             'delivered_at' => 'datetime',
+            'failed_at' => 'datetime',
             'returned_containers' => 'integer',
         ];
     }
@@ -56,8 +62,9 @@ class Delivery extends Model
     {
         return match ($this->status) {
             self::STATUS_ASSIGNED => [self::STATUS_IN_TRANSIT],
-            self::STATUS_IN_TRANSIT => [self::STATUS_DELIVERED],
+            self::STATUS_IN_TRANSIT => [self::STATUS_DELIVERED, self::STATUS_FAILED],
             self::STATUS_DELIVERED => [self::STATUS_RETURNED_TO_STATION],
+            self::STATUS_FAILED => [self::STATUS_RETURNED_TO_STATION],
             default => [],
         };
     }

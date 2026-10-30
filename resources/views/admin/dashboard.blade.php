@@ -2,32 +2,38 @@
     <x-slot name="title">Admin Dashboard | AquaTrack</x-slot>
 
     <div class="container section">
-        <h1 class="mb-4">Admin Dashboard</h1>
+        <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-4">
+            <div>
+                <h1 class="mb-1">Admin dashboard</h1>
+                <p class="text-muted mb-0">Users, catalog, and station configuration, with a shortcut into operations.</p>
+            </div>
+            <a class="btn btn-aqua" href="{{ route('operations.orders.index') }}"><x-icon name="shopping-cart" /> View orders</a>
+        </div>
 
         <div class="row g-4 mb-4">
             <div class="col-md-4">
-                <div class="px-card">
-                    <div class="ico">🧾</div>
+                <div class="px-card h-100">
+                    <x-icon name="shopping-cart" />
                     <h4 class="h6 mt-2">Open orders</h4>
                     <p class="display-6 mb-0">{{ $pendingOrders }}</p>
-                    <a class="small" href="{{ route('staff.orders.index') }}">View orders</a>
+                    <a class="small" href="{{ route('operations.orders.index') }}">View orders</a>
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="px-card">
-                    <div class="ico">📦</div>
+                <div class="px-card h-100">
+                    <x-icon name="package" />
                     <h4 class="h6 mt-2">Low stock items</h4>
                     <p class="display-6 mb-0">{{ $lowStock->count() }}</p>
                     @if ($lowStock->isNotEmpty())
-                        <span class="badge text-bg-danger rounded-0">Needs restock</span>
+                        <span class="badge text-bg-danger">Needs restock</span>
                     @else
-                        <span class="badge text-bg-success rounded-0">All stocked</span>
+                        <span class="badge text-bg-success">All stocked</span>
                     @endif
                 </div>
             </div>
             <div class="col-md-4">
-                <div class="px-card">
-                    <div class="ico">💰</div>
+                <div class="px-card h-100">
+                    <x-icon name="credit-card" />
                     <h4 class="h6 mt-2">Sales today</h4>
                     <p class="display-6 mb-0">₱{{ number_format($salesToday, 2) }}</p>
                     <span class="small text-muted">{{ $orderCountToday }} order(s) today</span>
@@ -42,9 +48,9 @@
 
         <div class="row g-4">
             <div class="col-lg-6">
-                <div class="px-card">
+                <div class="px-card h-100">
                     <h2 class="h5">Low stock
-                        <span class="badge text-bg-danger rounded-0" data-low-stock-badge>{{ $lowStock->count() }}</span>
+                        <span class="badge text-bg-danger" data-low-stock-badge>{{ $lowStock->count() }}</span>
                     </h2>
                     <div data-low-stock-list>
                     @if ($lowStock->isEmpty())
@@ -65,20 +71,26 @@
             </div>
 
             <div class="col-lg-6">
-                <div class="px-card">
+                <div class="px-card h-100">
                     <h2 class="h5">Manage</h2>
                     <div class="row g-2 mt-1">
                         <div class="col-6">
-                            <a class="btn btn-light rounded-0 fw-bold w-100" href="{{ route('admin.users.index') }}">Users</a>
+                            <a class="btn btn-light w-100" href="{{ route('admin.users.index') }}"><x-icon name="users" /> Users</a>
                         </div>
                         <div class="col-6">
-                            <a class="btn btn-light rounded-0 fw-bold w-100" href="{{ route('admin.products.index') }}">Products</a>
+                            <a class="btn btn-light w-100" href="{{ route('admin.products.index') }}"><x-icon name="shopping-bag" /> Products</a>
                         </div>
                         <div class="col-6">
-                            <a class="btn btn-light rounded-0 fw-bold w-100" href="{{ route('admin.inventory.index') }}">Thresholds</a>
+                            <a class="btn btn-light w-100" href="{{ route('admin.inventory.index') }}"><x-icon name="archive" /> Thresholds</a>
                         </div>
                         <div class="col-6">
-                            <a class="btn btn-light rounded-0 fw-bold w-100" href="{{ route('admin.settings.index') }}">Settings</a>
+                            <a class="btn btn-light w-100" href="{{ route('admin.settings.index') }}"><x-icon name="settings-2" /> Settings</a>
+                        </div>
+                        <div class="col-6">
+                            <a class="btn btn-light w-100" href="{{ route('operations.containers') }}"><x-icon name="droplet" /> Containers</a>
+                        </div>
+                        <div class="col-6">
+                            <a class="btn btn-light w-100" href="{{ route('operations.rentals.index') }}"><x-icon name="calendar" /> Rentals</a>
                         </div>
                     </div>
                 </div>

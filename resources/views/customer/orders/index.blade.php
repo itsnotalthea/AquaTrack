@@ -4,7 +4,10 @@
     <div class="container section">
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
             <h1 class="mb-0">My orders</h1>
-            <a class="btn btn-aqua px-3" href="{{ route('customer.orders.create') }}">Place an order</a>
+            <div class="d-flex gap-2">
+                <a class="btn btn-light" href="{{ route('dashboard') }}"><x-icon name="home" /> Dashboard</a>
+                <a class="btn btn-aqua px-3" href="{{ route('customer.orders.create') }}"><x-icon name="plus" /> Place an order</a>
+            </div>
         </div>
 
         @if (session('status')) <div class="alert alert-success rounded-0">{{ session('status') }}</div> @endif
@@ -20,7 +23,7 @@
                         <div class="small text-muted">Items</div>
                         <div>
                             @foreach ($order->items as $item)
-                                {{ $item->quantity }}&times; {{ $item->product->name }}@if (! $loop->last), @endif
+                                {{ $item->quantity }}&times; {{ $item->resolvedName() }}@if (! $loop->last), @endif
                             @endforeach
                         </div>
                     </div>

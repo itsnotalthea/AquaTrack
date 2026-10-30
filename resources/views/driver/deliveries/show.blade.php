@@ -30,7 +30,7 @@
                     <h2 class="h6">Items to carry</h2>
                     <ul class="mb-0">
                         @foreach ($delivery->order?->items ?? [] as $item)
-                            <li>{{ $item->quantity }} &times; {{ $item->product->name }}</li>
+                            <li>{{ $item->quantity }} &times; {{ $item->resolvedName() }}</li>
                         @endforeach
                     </ul>
                     @if ($delivery->order?->notes)
@@ -56,6 +56,11 @@
                                     <option value="{{ $status }}">{{ str_replace('_', ' ', $status) }}</option>
                                 @endforeach
                             </select>
+                            <div class="d-none mb-2" id="failureWrap">
+                                <label class="form-label" for="failure_reason">Why did it fail?</label>
+                                <input class="form-control" id="failure_reason" name="failure_reason" value="{{ old('failure_reason') }}" maxlength="500">
+                                @error('failure_reason') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                            </div>
                             <button class="btn btn-aqua w-100" type="submit">Update</button>
                         </form>
                     @endif
@@ -88,4 +93,26 @@
             </div>
         </div>
     </div>
+
+    @push('scripts')
+        <script>
+            (function () {
+                var status = document.getElementById('status');
+                var wrap = document.getElementById('failureWrap');
+
+                function refresh() {
+                    if (!status || !wrap) {
+                        return;
+                    }
+
+                    wrap.classList.toggle('d-none', status.value !== 'failed');
+                }
+
+                if (status) {
+                    status.addEventListener('change', refresh);
+                    refresh();
+                }
+            })();
+        </script>
+    @endpush
 </x-app-layout>

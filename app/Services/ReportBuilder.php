@@ -25,6 +25,7 @@ class ReportBuilder
         'ready_for_pickup' => 'Ready for pickup',
         'picked_up' => 'Picked up',
         'completed' => 'Completed',
+        'delivery_failed' => 'Delivery failed',
         'cancelled' => 'Cancelled',
     ];
 
@@ -66,6 +67,7 @@ class ReportBuilder
                 Delivery::STATUS_ASSIGNED => 'Assigned',
                 Delivery::STATUS_IN_TRANSIT => 'In transit',
                 Delivery::STATUS_DELIVERED => 'Delivered',
+                Delivery::STATUS_FAILED => 'Failed',
                 Delivery::STATUS_RETURNED_TO_STATION => 'Returned to station',
             ],
         ];
@@ -106,8 +108,14 @@ class ReportBuilder
 
     private function sales(): array
     {
-        $rows = $this->baseOrderQuery()
-            ->whereNot('status', Order::STATUS_CANCELLED)
+        $base = $this->baseOrderQuery()->whereNot('status', Order::STATUS_CANCELLED);
+
+        // totals come from the full filtered set, never from the paginated preview
+        $totals = (clone $base)
+            ->selectRaw('COUNT(*) as orders, COALESCE(SUM(total_amount), 0) as gross, COALESCE(SUM(CASE WHEN payment_status = ? THEN total_amount ELSE 0 END), 0) as collected', ['paid'])
+            ->first();
+
+        $rows = (clone $base)
             ->with('customer', 'items.product')
             ->orderByDesc('created_at')
             ->limit(500)
@@ -117,23 +125,19 @@ class ReportBuilder
                 'date' => $o->created_at->format('Y-m-d H:i'),
                 'customer' => $o->customer?->name,
                 'type' => $o->order_type,
-                'items' => $o->items->map(fn ($i) => $i->quantity.'x '.$i->product->name)->implode(', '),
+                'items' => $o->items->map(fn ($i) => $i->quantity.'x '.$i->resolvedName())->implode(', '),
                 'total' => (float) $o->total_amount,
                 'payment' => $o->payment_status,
             ])->all();
 
-        $gross = array_sum(array_column($rows, 'total'));
-        $collected = 0.0;
-        foreach ($rows as $row) {
-            if ($row['payment'] === 'paid') {
-                $collected += $row['total'];
-            }
-        }
-
         return [
             'columns' => ['id' => 'Order', 'date' => 'Date', 'customer' => 'Customer', 'type' => 'Type', 'items' => 'Items', 'total' => 'Total', 'payment' => 'Payment'],
             'rows' => $rows,
-            'totals' => ['gross' => $gross, 'collected' => $collected, 'orders' => count($rows)],
+            'totals' => [
+                'gross' => (float) $totals->gross,
+                'collected' => (float) $totals->collected,
+                'orders' => (int) $totals->orders,
+            ],
         ];
     }
 
@@ -144,13 +148,25 @@ class ReportBuilder
         $rows = DB::table('order_items')
             ->join('orders', 'orders.id', '=', 'order_items.order_id')
             ->join('products', 'products.id', '=', 'order_items.product_id')
+            ->leftJoin('deliveries', 'deliveries.order_id', '=', 'orders.id')
             ->when($f['from'], fn ($q) => $q->whereDate('orders.created_at', '>=', $f['from']))
             ->when($f['to'], fn ($q) => $q->whereDate('orders.created_at', '<=', $f['to']))
             ->when($f['product_id'], fn ($q) => $q->where('order_items.product_id', $f['product_id']))
-            ->where('orders.status', '!=', Order::STATUS_CANCELLED)
-            ->groupBy('products.id', 'products.name', 'products.unit')
+            ->when($f['customer_id'], fn ($q) => $q->where('orders.customer_id', $f['customer_id']))
+            ->when($f['barangay'], fn ($q) => $q->where('orders.barangay', $f['barangay']))
+            ->when($f['order_type'], fn ($q) => $q->where('orders.order_type', $f['order_type']))
+            ->when($f['payment_status'], fn ($q) => $q->where('orders.payment_status', $f['payment_status']))
+            ->when($f['payment_method'], fn ($q) => $q->where('orders.payment_method', $f['payment_method']))
+            ->when($f['driver_id'], fn ($q) => $q->where('deliveries.driver_id', $f['driver_id']))
+            ->when($f['status'], fn ($q) => $q->where('orders.status', $f['status']), fn ($q) => $q->where('orders.status', '!=', Order::STATUS_CANCELLED))
+            ->groupBy('products.id', 'products.name', 'order_items.unit', 'products.unit')
             ->orderByDesc(DB::raw('SUM(order_items.subtotal)'))
-            ->select('products.name', 'products.unit', DB::raw('SUM(order_items.quantity) as qty'), DB::raw('SUM(order_items.subtotal) as amount'))
+            ->select(
+                'products.name',
+                DB::raw('COALESCE(order_items.unit, products.unit) as unit'),
+                DB::raw('SUM(order_items.quantity) as qty'),
+                DB::raw('SUM(order_items.subtotal) as amount')
+            )
             ->get()
             ->map(fn ($r) => [
                 'name' => $r->name,
@@ -170,11 +186,15 @@ class ReportBuilder
     {
         $f = $this->filters();
 
-        $rows = Payment::query()
-            ->with('order', 'recorder')
+        $base = Payment::query()
             ->when($f['from'], fn ($q) => $q->whereDate('payments.created_at', '>=', $f['from']))
             ->when($f['to'], fn ($q) => $q->whereDate('payments.created_at', '<=', $f['to']))
-            ->when($f['payment_method'], fn ($q) => $q->where('method', $f['payment_method']))
+            ->when($f['payment_method'], fn ($q) => $q->where('method', $f['payment_method']));
+
+        $totals = (clone $base)->selectRaw('COUNT(*) as count, COALESCE(SUM(amount), 0) as amount')->first();
+
+        $rows = (clone $base)
+            ->with('order', 'recorder')
             ->orderByDesc('payments.created_at')
             ->limit(500)
             ->get()
@@ -189,13 +209,16 @@ class ReportBuilder
         return [
             'columns' => ['date' => 'Date', 'order' => 'Order', 'method' => 'Method', 'amount' => 'Amount', 'by' => 'Recorded by'],
             'rows' => $rows,
-            'totals' => ['amount' => array_sum(array_column($rows, 'amount')), 'count' => count($rows)],
+            'totals' => ['amount' => (float) $totals->amount, 'count' => (int) $totals->count],
         ];
     }
 
     private function orders(): array
     {
-        $rows = $this->baseOrderQuery()->with('customer', 'items.product')
+        $base = $this->baseOrderQuery();
+        $totals = (clone $base)->selectRaw('COUNT(*) as count, COALESCE(SUM(total_amount), 0) as total')->first();
+
+        $rows = (clone $base)->with('customer', 'items.product')
             ->orderByDesc('created_at')->limit(500)->get()
             ->map(fn (Order $o) => [
                 'id' => $o->id,
@@ -211,7 +234,7 @@ class ReportBuilder
         return [
             'columns' => ['id' => 'Order', 'date' => 'Date', 'customer' => 'Customer', 'type' => 'Type', 'barangay' => 'Barangay', 'status' => 'Status', 'payment' => 'Payment', 'total' => 'Total'],
             'rows' => $rows,
-            'totals' => ['total' => array_sum(array_column($rows, 'total')), 'count' => count($rows)],
+            'totals' => ['total' => (float) $totals->total, 'count' => (int) $totals->count],
         ];
     }
 
@@ -219,12 +242,16 @@ class ReportBuilder
     {
         $f = $this->filters();
 
-        $rows = Delivery::query()
-            ->with('order.customer', 'driver')
+        $base = Delivery::query()
             ->when($f['from'], fn ($q) => $q->whereDate('created_at', '>=', $f['from']))
             ->when($f['to'], fn ($q) => $q->whereDate('created_at', '<=', $f['to']))
             ->when($f['driver_id'], fn ($q) => $q->where('driver_id', $f['driver_id']))
-            ->when($f['status'], fn ($q) => $q->where('status', $f['status']))
+            ->when($f['status'], fn ($q) => $q->where('status', $f['status']));
+
+        $total = (clone $base)->count();
+
+        $rows = (clone $base)
+            ->with('order.customer', 'driver')
             ->orderByDesc('created_at')->limit(500)->get()
             ->map(fn (Delivery $d) => [
                 'order' => $d->order_id,
@@ -238,7 +265,7 @@ class ReportBuilder
         return [
             'columns' => ['order' => 'Order', 'customer' => 'Customer', 'barangay' => 'Barangay', 'driver' => 'Driver', 'status' => 'Status', 'delivered_at' => 'Delivered at'],
             'rows' => $rows,
-            'totals' => ['count' => count($rows)],
+            'totals' => ['count' => $total],
         ];
     }
 
@@ -320,32 +347,51 @@ class ReportBuilder
         $rows = User::where('role', User::ROLE_CUSTOMER)
             ->when($f['barangay'], fn ($q) => $q->where('barangay', $f['barangay']))
             ->when($f['customer_id'], fn ($q) => $q->whereKey($f['customer_id']))
-            ->orderBy('last_name')
-            ->limit(500)
-            ->get()
-            ->map(function (User $u) use ($f) {
-                $query = Order::where('customer_id', $u->id)->whereNot('status', Order::STATUS_CANCELLED);
+            ->withCount(['orders' => function ($query) use ($f) {
+                $query->whereNot('status', Order::STATUS_CANCELLED);
                 if ($f['from']) {
                     $query->whereDate('created_at', '>=', $f['from']);
                 }
                 if ($f['to']) {
                     $query->whereDate('created_at', '<=', $f['to']);
                 }
+            }])
+            ->withSum(['orders' => function ($query) use ($f) {
+                $query->whereNot('status', Order::STATUS_CANCELLED);
+                if ($f['from']) {
+                    $query->whereDate('created_at', '>=', $f['from']);
+                }
+                if ($f['to']) {
+                    $query->whereDate('created_at', '<=', $f['to']);
+                }
+            }], 'total_amount')
+            ->orderBy('last_name')
+            ->limit(500)
+            ->get()
+            ->map(fn (User $u) => [
+                'name' => $u->name,
+                'email' => $u->email,
+                'mobile' => $u->mobile,
+                'barangay' => $u->barangay,
+                'orders' => (int) $u->orders_count,
+                'spent' => (float) ($u->orders_sum_total_amount ?? 0),
+            ])->all();
 
-                return [
-                    'name' => $u->name,
-                    'email' => $u->email,
-                    'mobile' => $u->mobile,
-                    'barangay' => $u->barangay,
-                    'orders' => (clone $query)->count(),
-                    'spent' => (float) (clone $query)->sum('total_amount'),
-                ];
-            })->all();
+        $customerQuery = User::where('role', User::ROLE_CUSTOMER)
+            ->when($f['barangay'], fn ($q) => $q->where('barangay', $f['barangay']))
+            ->when($f['customer_id'], fn ($q) => $q->whereKey($f['customer_id']));
+
+        $spent = Order::query()
+            ->whereNot('status', Order::STATUS_CANCELLED)
+            ->whereIn('customer_id', (clone $customerQuery)->select('id'))
+            ->when($f['from'], fn ($q) => $q->whereDate('created_at', '>=', $f['from']))
+            ->when($f['to'], fn ($q) => $q->whereDate('created_at', '<=', $f['to']))
+            ->sum('total_amount');
 
         return [
             'columns' => ['name' => 'Customer', 'email' => 'Email', 'mobile' => 'Mobile', 'barangay' => 'Barangay', 'orders' => 'Orders', 'spent' => 'Total spent'],
             'rows' => $rows,
-            'totals' => ['customers' => count($rows), 'spent' => array_sum(array_column($rows, 'spent'))],
+            'totals' => ['customers' => (clone $customerQuery)->count(), 'spent' => (float) $spent],
         ];
     }
 }

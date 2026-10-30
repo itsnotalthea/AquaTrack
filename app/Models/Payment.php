@@ -14,6 +14,8 @@ class Payment extends Model
         'order_id',
         'amount',
         'method',
+        'reference_number',
+        'proof_path',
         'recorded_by',
     ];
 

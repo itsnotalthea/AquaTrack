@@ -27,6 +27,7 @@ class RegistrationTest extends TestCase
             'house_no' => '12',
             'street' => 'Katipunan Ave',
             'subdivision' => null,
+            'barangay' => 'Malanday',
             'city' => 'Marikina City',
         ]);
 
@@ -50,6 +51,7 @@ class RegistrationTest extends TestCase
             'password_confirmation' => 'password',
             'house_no' => '1',
             'street' => 'Street',
+            'barangay' => 'Malanday',
             'city' => 'Marikina City',
             'role' => User::ROLE_ADMIN,
         ]);
@@ -68,6 +70,7 @@ class RegistrationTest extends TestCase
             'password_confirmation' => 'password',
             'house_no' => '1',
             'street' => 'Street',
+            'barangay' => 'Malanday',
             'city' => 'Marikina City',
         ]);
 
@@ -75,7 +78,7 @@ class RegistrationTest extends TestCase
         $this->assertGuest();
     }
 
-    public function test_registration_rejects_passwords_shorter_than_five_characters(): void
+    public function test_registration_rejects_passwords_shorter_than_eight_characters(): void
     {
         $response = $this->post('/register', [
             'first_name' => 'Short',
@@ -86,6 +89,7 @@ class RegistrationTest extends TestCase
             'password_confirmation' => 'abcd',
             'house_no' => '1',
             'street' => 'Street',
+            'barangay' => 'Malanday',
             'city' => 'Marikina City',
         ]);
 
@@ -102,6 +106,7 @@ class RegistrationTest extends TestCase
             'mobile' => '09171234567',
             'password' => 'password',
             'password_confirmation' => 'password',
+            'barangay' => 'Malanday',
             'city' => 'Marikina City',
         ]);
 
@@ -122,6 +127,7 @@ class RegistrationTest extends TestCase
             'password_confirmation' => 'password',
             'house_no' => '1',
             'street' => 'Street',
+            'barangay' => 'Malanday',
             'city' => 'Marikina City',
         ]);
 

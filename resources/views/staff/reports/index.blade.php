@@ -1,4 +1,4 @@
-<x-app-layout>
+﻿<x-app-layout>
     <x-slot name="title">{{ $title }} | AquaTrack</x-slot>
 
     <div class="container section">
@@ -11,7 +11,7 @@
                     <nav class="d-grid gap-1">
                         @foreach ($allTypes as $key => $label)
                             <a class="btn {{ $key === $type ? 'btn-aqua' : 'btn-light rounded-0 fw-bold' }} text-start"
-                               href="{{ route('staff.reports.index', ['type' => $key]) }}">{{ $label }}</a>
+                               href="{{ route('operations.reports.index', ['type' => $key]) }}">{{ $label }}</a>
                         @endforeach
                     </nav>
                 </div>
@@ -152,7 +152,7 @@
 
                         <div class="col-12 d-flex gap-2">
                             <button class="btn btn-aqua px-4" type="submit">Apply filters</button>
-                            <a class="btn btn-light rounded-0 fw-bold px-4" href="{{ route('staff.reports.index', ['type' => $type]) }}">Reset</a>
+                            <a class="btn btn-light rounded-0 fw-bold px-4" href="{{ route('operations.reports.index', ['type' => $type]) }}">Reset</a>
                         </div>
                     </form>
                 </div>

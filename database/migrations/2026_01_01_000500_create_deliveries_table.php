@@ -12,10 +12,12 @@ return new class extends Migration
             $table->id();
             $table->foreignId('order_id')->constrained()->unique();
             $table->foreignId('driver_id')->nullable()->constrained('users')->nullOnDelete();
-            $table->enum('status', ['assigned', 'in_transit', 'delivered', 'returned_to_station'])
+            $table->enum('status', ['assigned', 'in_transit', 'delivered', 'failed', 'returned_to_station'])
                 ->default('assigned')
                 ->index();
             $table->timestamp('delivered_at')->nullable();
+            $table->timestamp('failed_at')->nullable();
+            $table->text('failure_reason')->nullable();
             $table->timestamps();
         });
     }

@@ -63,6 +63,18 @@ class StaffOrderTest extends TestCase
         $this->actingAs($this->staff())->get('/staff/orders')->assertOk();
     }
 
+    public function test_staff_sees_the_compact_order_detail_panels(): void
+    {
+        $order = $this->order('delivery');
+
+        $this->actingAs($this->staff())->get("/staff/orders/{$order->id}")
+            ->assertOk()
+            ->assertSee('ops-order', false)
+            ->assertSee('Update status')
+            ->assertSee('Assign driver')
+            ->assertSee($order->customer->name);
+    }
+
     public function test_customers_and_drivers_cannot_reach_staff_pages(): void
     {
         foreach ([User::ROLE_CUSTOMER, User::ROLE_DRIVER] as $role) {

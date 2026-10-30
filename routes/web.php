@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\InventoryController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Customer\CartController;
 use App\Http\Controllers\Customer\OrderController as CustomerOrderController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Driver\DashboardController as DriverDashboardController;
@@ -15,9 +16,13 @@ use App\Http\Controllers\Staff\ReportController;
 use App\Models\User;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', fn () => view('home'))->name('home');
-Route::get('/about', fn () => view('about'))->name('about');
-Route::get('/services', fn () => view('services'))->name('services');
+$marketingPage = fn (string $view) => auth()->check()
+    ? redirect()->route('dashboard')
+    : view($view);
+
+Route::get('/', fn () => $marketingPage('home'))->name('home');
+Route::get('/about', fn () => $marketingPage('about'))->name('about');
+Route::get('/services', fn () => $marketingPage('services'))->name('services');
 
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
@@ -60,6 +65,33 @@ Route::middleware('auth')->group(function () {
         Route::get('/orders/create', [CustomerOrderController::class, 'create'])->name('orders.create');
         Route::post('/orders', [CustomerOrderController::class, 'store'])->name('orders.store');
         Route::get('/orders/{order}', [CustomerOrderController::class, 'show'])->name('orders.show');
+
+        Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
+        Route::post('/cart', [CartController::class, 'store'])->name('cart.store');
+        Route::put('/cart/{key}', [CartController::class, 'update'])->name('cart.update');
+        Route::delete('/cart/{key}', [CartController::class, 'destroy'])->name('cart.destroy');
+        Route::delete('/cart', [CartController::class, 'clear'])->name('cart.clear');
+    });
+
+    // shared operations area: admin and staff see the same fulfillment tools
+    Route::prefix('operations')->name('operations.')->middleware('role:'.User::ROLE_ADMIN.','.User::ROLE_STAFF)->group(function () {
+        Route::get('/', [OperationsController::class, 'dashboard'])->name('dashboard');
+
+        Route::get('/orders', [StaffOrderController::class, 'index'])->name('orders.index');
+        Route::get('/orders/{order}', [StaffOrderController::class, 'show'])->name('orders.show');
+        Route::put('/orders/{order}/status', [StaffOrderController::class, 'updateStatus'])->name('orders.status');
+        Route::put('/orders/{order}/driver', [StaffOrderController::class, 'assignDriver'])->name('orders.driver');
+        Route::put('/orders/{order}/payment', [StaffOrderController::class, 'recordPayment'])->name('orders.payment');
+
+        Route::get('/inventory', [OperationsController::class, 'inventory'])->name('inventory');
+        Route::put('/inventory/{item}', [OperationsController::class, 'adjustInventory'])->name('inventory.adjust');
+        Route::get('/containers', [OperationsController::class, 'containers'])->name('containers');
+        Route::put('/containers/{status}', [OperationsController::class, 'adjustContainer'])->name('containers.adjust');
+        Route::get('/rentals', [OperationsController::class, 'rentals'])->name('rentals.index');
+        Route::put('/rentals/{rental}/return', [OperationsController::class, 'returnRental'])->name('rentals.return');
+
+        Route::get('/reports', fn () => redirect()->route('operations.reports.index', ['type' => 'sales']))->name('reports');
+        Route::get('/reports/{type}', [ReportController::class, 'index'])->name('reports.index');
     });
 
     // admin module

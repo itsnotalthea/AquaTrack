@@ -11,6 +11,7 @@
                     <option value="assigned" @selected(request('status') === 'assigned')>Assigned</option>
                     <option value="in_transit" @selected(request('status') === 'in_transit')>In transit</option>
                     <option value="delivered" @selected(request('status') === 'delivered')>Delivered</option>
+                    <option value="failed" @selected(request('status') === 'failed')>Failed</option>
                     <option value="returned_to_station" @selected(request('status') === 'returned_to_station')>Returned to station</option>
                 </select>
             </div>

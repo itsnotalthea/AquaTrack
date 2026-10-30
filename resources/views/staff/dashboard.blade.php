@@ -1,41 +1,74 @@
 <x-app-layout>
-    <x-slot name="title">Staff Dashboard | AquaTrack</x-slot>
+    <x-slot name="title">Operations Dashboard | AquaTrack</x-slot>
 
     <div class="container section">
-        <h1 class="mb-4">Staff Dashboard</h1>
-
-        @if (session('status')) <div class="alert alert-success rounded-0">{{ session('status') }}</div> @endif
+        <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-4">
+            <div>
+                <h1 class="mb-1">Operations dashboard</h1>
+                <p class="text-muted mb-0">Today at a glance across orders, deliveries, containers, and rentals.</p>
+            </div>
+            <a class="btn btn-aqua" href="{{ route('operations.orders.index', ['status' => 'pending']) }}">
+                <x-icon name="shopping-cart" /> Pending orders
+            </a>
+        </div>
 
         <div class="row g-4 mb-4">
             <div class="col-md-6 col-lg-3">
-                <a class="text-decoration-none" href="{{ route('staff.orders.index', ['status' => 'pending']) }}">
-                    <div class="px-card">
-                        <div class="ico">📋</div>
+                <a class="text-decoration-none" href="{{ route('operations.orders.index', ['status' => 'pending']) }}">
+                    <div class="px-card h-100">
+                        <x-icon name="shopping-cart" />
                         <h4 class="h6 mt-2">Pending orders</h4>
                         <p class="display-6 mb-0">{{ $pendingOrders }}</p>
                     </div>
                 </a>
             </div>
             <div class="col-md-6 col-lg-3">
-                <div class="px-card">
-                    <div class="ico">🗓️</div>
+                <div class="px-card h-100">
+                    <x-icon name="calendar" />
                     <h4 class="h6 mt-2">Today's orders</h4>
                     <p class="display-6 mb-0">{{ $todaysOrders }}</p>
                 </div>
             </div>
             <div class="col-md-6 col-lg-3">
-                <div class="px-card">
-                    <div class="ico">💵</div>
+                <div class="px-card h-100">
+                    <x-icon name="credit-card" />
                     <h4 class="h6 mt-2">Awaiting payment</h4>
                     <p class="display-6 mb-0">{{ $awaitingPayment }}</p>
                 </div>
             </div>
             <div class="col-md-6 col-lg-3">
-                <div class="px-card">
-                    <div class="ico">🚚</div>
+                <div class="px-card h-100">
+                    <x-icon name="truck" />
                     <h4 class="h6 mt-2">Active deliveries</h4>
                     <p class="display-6 mb-0">{{ $activeDeliveries }}</p>
                 </div>
+            </div>
+        </div>
+
+        <div class="row g-4 mb-4">
+            <div class="col-md-4">
+                <div class="px-card h-100 stat-critical">
+                    <x-icon name="warning-diamond" />
+                    <h4 class="h6 mt-2">Failed deliveries</h4>
+                    <p class="display-6 mb-0">{{ $failedDeliveries }}</p>
+                    <a class="small" href="{{ route('operations.orders.index', ['status' => 'delivery_failed']) }}">Review</a>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="px-card h-100">
+                    <x-icon name="calendar" />
+                    <h4 class="h6 mt-2">Dispensers out</h4>
+                    <p class="display-6 mb-0">{{ $activeRentals }}</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <a class="text-decoration-none" href="{{ route('operations.rentals.index') }}">
+                    <div class="px-card h-100 stat-critical">
+                        <x-icon name="clock" />
+                        <h4 class="h6 mt-2">Overdue rentals</h4>
+                        <p class="display-6 mb-0">{{ $overdueRentals }}</p>
+                    </div>
+                </a>
             </div>
         </div>
 
@@ -46,9 +79,9 @@
 
         <div class="row g-4">
             <div class="col-lg-6">
-                <div class="px-card h-100">
+                <div class="px-card h-100 @if($lowStock->isNotEmpty()) stat-critical @endif">
                     <h2 class="h5">Low stock
-                        <span class="badge text-bg-danger rounded-0" data-low-stock-badge>{{ $lowStock->count() }}</span>
+                        <span class="badge text-bg-danger" data-low-stock-badge>{{ $lowStock->count() }}</span>
                     </h2>
                     <div data-low-stock-list>
                     @if ($lowStock->isEmpty())
@@ -64,20 +97,15 @@
                         </ul>
                     @endif
                     </div>
-                    <a class="btn btn-aqua px-3" href="{{ route('staff.inventory') }}">Inventory</a>
+                    <a class="btn btn-aqua px-3" href="{{ route('operations.inventory') }}">Inventory</a>
                 </div>
             </div>
 
             <div class="col-lg-6">
                 <div class="px-card h-100">
-                    <h2 class="h5">Reports</h2>
-                    <div class="row g-2 mt-1">
-                        @foreach (\App\Http\Controllers\Staff\ReportController::TYPES as $key => $label)
-                            <div class="col-6">
-                                <a class="btn btn-light rounded-0 fw-bold w-100" href="{{ route('staff.reports.index', ['type' => $key]) }}">{{ $label }}</a>
-                            </div>
-                        @endforeach
-                    </div>
+                    <h2 class="h5">Upcoming deliveries</h2>
+                    <div class="calendar-widget" data-calendar-widget data-deliveries="{{ json_encode($upcomingDeliveries ?? []) }}"></div>
+                    <a class="btn btn-light w-100 mt-2" href="{{ route('operations.orders.index', ['status' => 'out_for_delivery']) }}">View all</a>
                 </div>
             </div>
         </div>

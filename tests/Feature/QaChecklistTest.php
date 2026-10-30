@@ -18,6 +18,7 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
@@ -192,7 +193,7 @@ class QaChecklistTest extends TestCase
 
         $delivery = $this->order(['order_type' => 'delivery']);
         $delivery->status = Order::STATUS_OUT_FOR_DELIVERY;
-        $this->assertSame([Order::STATUS_DELIVERED], $delivery->allowedTransitions());
+        $this->assertSame([Order::STATUS_DELIVERED, Order::STATUS_DELIVERY_FAILED], $delivery->allowedTransitions());
 
         $delivery->status = Order::STATUS_COMPLETED;
         $this->assertSame([], $delivery->allowedTransitions());
@@ -414,15 +415,60 @@ class QaChecklistTest extends TestCase
     {
         $home = $this->get('/')->assertOk()->getContent();
 
-        // tiktok iframe and calendar survive untouched
+        // marketing content survives; the fake calendar is replaced by real coverage info
         $this->assertStringContainsString('id="tiktok-player"', $home);
         $this->assertStringContainsString('7313952032467979566', $home);
         $this->assertStringContainsString('tiktok-landscape-wrapper', $home);
-        $this->assertStringContainsString('id="calendar"', $home);
+        $this->assertStringNotContainsString('id="calendar"', $home);
+        $this->assertStringContainsString('All 16 Marikina barangays', $home);
         $this->assertStringContainsString('<nav class="navbar', $home);
+        $this->assertStringContainsString('class="bubble bubble-1"', $home);
+        $this->assertStringContainsString('class="bubble bubble-5"', $home);
+        $this->assertStringNotContainsString('class="bg-white p-3"', $home);
+        $this->assertStringNotContainsString('class="bg-white p-1 mb-2"', $home);
 
         $this->get('/about')->assertOk()->assertSee('About AquaTrack');
-        $this->get('/services')->assertOk()->assertSee('Place an order');
+        $this->get('/services')->assertOk()->assertSee('Service options');
+    }
+
+    public function test_services_page_renders_without_a_database_connection(): void
+    {
+        $originalConnection = config('database.default');
+        config([
+            'database.default' => 'mysql',
+            'database.connections.mysql.host' => '127.0.0.1',
+            'database.connections.mysql.port' => 1,
+        ]);
+        DB::purge('mysql');
+
+        try {
+            $response = $this->get('/services');
+        } finally {
+            DB::purge('mysql');
+            config(['database.default' => $originalConnection]);
+        }
+
+        $response->assertOk()
+            ->assertSee('Water refills')
+            ->assertSee('Current prices and availability are shown when you place an order.');
+    }
+
+    public function test_customer_order_modals_render_outside_the_animated_main(): void
+    {
+        $html = $this->actingAs($this->customer())
+            ->get('/customer/orders/create')
+            ->assertOk()
+            ->getContent();
+
+        $mainEnd = strpos($html, '</main>');
+        $addModal = strpos($html, 'id="addItemModal"');
+        $checkoutModal = strpos($html, 'id="checkoutModal"');
+
+        $this->assertNotFalse($mainEnd);
+        $this->assertNotFalse($addModal);
+        $this->assertNotFalse($checkoutModal);
+        $this->assertGreaterThan($mainEnd, $addModal);
+        $this->assertGreaterThan($mainEnd, $checkoutModal);
     }
 
     // 23

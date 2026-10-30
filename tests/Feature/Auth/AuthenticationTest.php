@@ -30,6 +30,18 @@ class AuthenticationTest extends TestCase
         $response->assertRedirect(route('dashboard', absolute: false));
     }
 
+    public function test_users_can_authenticate_with_mixed_case_email(): void
+    {
+        $user = User::factory()->create(['email' => 'customer@example.com']);
+
+        $this->post('/login', [
+            'email' => 'Customer@Example.com',
+            'password' => 'password',
+        ]);
+
+        $this->assertAuthenticatedAs($user);
+    }
+
     public function test_users_can_not_authenticate_with_invalid_password(): void
     {
         $user = User::factory()->create();

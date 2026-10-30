@@ -50,6 +50,39 @@ class RoleRedirectTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_customer_pages_use_portal_navigation_and_marketing_pages_redirect_authenticated_users(): void
+    {
+        $customer = User::factory()->customer()->create();
+
+        $this->actingAs($customer)
+            ->get('/customer/dashboard')
+            ->assertOk()
+            ->assertSee('Customer navigation')
+            ->assertSee('Place an order')
+            ->assertDontSee('About Us')
+            ->assertDontSee('<footer', false);
+
+        foreach (['/', '/about', '/services'] as $path) {
+            $this->actingAs($customer)->get($path)->assertRedirect('/dashboard');
+        }
+    }
+
+    public function test_internal_dashboards_use_the_sidebar_without_marketing_chrome(): void
+    {
+        foreach ([
+            [User::ROLE_ADMIN, '/admin/dashboard'],
+            [User::ROLE_STAFF, '/staff/dashboard'],
+            [User::ROLE_DRIVER, '/driver/dashboard'],
+        ] as [$role, $path]) {
+            $this->actingAs(User::factory()->role($role)->create())
+                ->get($path)
+                ->assertOk()
+                ->assertSee('id="appSidebar"', false)
+                ->assertDontSee('About Us')
+                ->assertDontSee('<footer', false);
+        }
+    }
+
     public function test_guests_are_redirected_to_login(): void
     {
         $this->get('/staff/dashboard')->assertRedirect('/login');

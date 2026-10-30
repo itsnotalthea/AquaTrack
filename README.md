@@ -29,18 +29,21 @@ Node and npm are not needed.
    cp .env.example .env       # macOS / Linux
    ```
 
-4. Create the database. Log into MySQL as `root` and run:
+4. Start MySQL and phpMyAdmin, open **http://localhost/phpmyadmin**, select the SQL tab, and run:
 
    ```sql
-   CREATE DATABASE aquatrack CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+   CREATE DATABASE AquaTrack CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
    CREATE USER 'aquatrack'@'localhost' IDENTIFIED BY 'aquatrack_dev_pw';
-   GRANT ALL PRIVILEGES ON aquatrack.* TO 'aquatrack'@'localhost';
+   GRANT ALL PRIVILEGES ON AquaTrack.* TO 'aquatrack'@'localhost';
    FLUSH PRIVILEGES;
    ```
 
    Any local MySQL account works instead. If you use a different one, put its
    name and password into the `DB_USERNAME` and `DB_PASSWORD` lines of `.env`
    so they match.
+
+   On Windows, MySQL may display `AquaTrack` as `aquatrack` because schema names
+   are stored in lowercase; Laravel can still connect using `AquaTrack`.
 
 5. Generate the application key:
 

@@ -46,25 +46,63 @@
                 @error('subdivision') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
             </div>
             <div class="col-12">
+                <label class="form-label" for="barangay">Barangay</label>
+                <select id="barangay" class="form-select" name="barangay" required>
+                    <option value="">Choose your barangay</option>
+                    @foreach (\App\Models\Barangay::districts() as $district => $barangays)
+                        <optgroup label="{{ $district }}">
+                            @foreach ($barangays as $value => $label)
+                                <option value="{{ $value }}" @selected(old('barangay') === $value)>{{ $label }}</option>
+                            @endforeach
+                        </optgroup>
+                    @endforeach
+                </select>
+                @error('barangay') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+            </div>
+            <div class="col-12">
                 <label class="form-label" for="city">City</label>
-                <input id="city" class="form-control" type="text" name="city" value="{{ old('city', 'Marikina City') }}" required>
+                <input id="city" class="form-control" type="text" name="city" value="Marikina City" readonly>
                 @error('city') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
             </div>
             <div class="col-12">
                 <label class="form-label" for="password">Password</label>
-                <input id="password" class="form-control" type="password" name="password" minlength="5" required autocomplete="new-password">
-                <div class="form-text">At least 5 characters.</div>
+                <div class="input-group">
+                    <input id="password" class="form-control" type="password" name="password" minlength="8" required autocomplete="new-password">
+                    <button type="button" class="btn btn-light border" data-password-toggle="password" aria-label="Show password">Show</button>
+                </div>
+                <div class="form-text">At least 8 characters.</div>
                 @error('password') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
             </div>
             <div class="col-12">
                 <label class="form-label" for="password_confirmation">Confirm password</label>
-                <input id="password_confirmation" class="form-control" type="password" name="password_confirmation" minlength="5" required autocomplete="new-password">
+                <div class="input-group">
+                    <input id="password_confirmation" class="form-control" type="password" name="password_confirmation" minlength="8" required autocomplete="new-password">
+                    <button type="button" class="btn btn-light border" data-password-toggle="password_confirmation" aria-label="Show password confirmation">Show</button>
+                </div>
                 @error('password_confirmation') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
             </div>
         </div>
 
-        <button class="btn btn-aqua w-100 mt-3" type="submit">Register</button>
+        <button class="btn btn-aqua w-100 mt-3 snake-button" type="submit"><span class="snake-border" aria-hidden="true"></span>Register</button>
     </form>
 
     <p class="small mt-3 mb-0 text-center">Already have an account? <a href="{{ route('login') }}">Log in</a></p>
+
+    @push('scripts')
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                document.querySelectorAll('[data-password-toggle]').forEach(function (button) {
+                    var input = document.getElementById(button.dataset.passwordToggle);
+                    if (!input) return;
+
+                    button.addEventListener('click', function () {
+                        var showing = input.type === 'text';
+                        input.type = showing ? 'password' : 'text';
+                        button.textContent = showing ? 'Show' : 'Hide';
+                        button.setAttribute('aria-pressed', String(!showing));
+                    });
+                });
+            });
+        </script>
+    @endpush
 </x-guest-layout>

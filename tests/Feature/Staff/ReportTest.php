@@ -85,6 +85,7 @@ class ReportTest extends TestCase
         $response = $this->actingAs($this->staff())->get('/staff/reports/sales');
 
         $response->assertOk();
+        $response->assertSee('₱150.00')->assertDontSee('â‚±');
         $totals = $response->viewData('totals');
         $this->assertSame(150.0, $totals['gross']);
         $this->assertSame(100.0, $totals['collected']);

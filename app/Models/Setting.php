@@ -9,6 +9,8 @@ class Setting extends Model
 {
     public const DELIVERY_FEE = 'delivery_fee';
 
+    public const DISPENSER_RENTAL_DAYS = 'dispenser_rental_days';
+
     public $incrementing = false;
 
     public $timestamps = false;
@@ -36,5 +38,10 @@ class Setting extends Model
     public static function deliveryFee(): float
     {
         return (float) static::get(self::DELIVERY_FEE, 30);
+    }
+
+    public static function dispenserRentalDays(): int
+    {
+        return max(1, (int) static::get(self::DISPENSER_RENTAL_DAYS, 30));
     }
 }

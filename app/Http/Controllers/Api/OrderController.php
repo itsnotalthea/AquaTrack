@@ -38,7 +38,11 @@ class OrderController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $order = app(PlaceOrder::class)->handle($request);
+        try {
+            $order = app(PlaceOrder::class)->handle($request);
+        } catch (\App\Services\InsufficientStockException $e) {
+            return response()->json(['message' => $e->getMessage(), 'errors' => ['stock' => [$e->getMessage()]]], 422);
+        }
 
         return response()->json([
             'message' => 'Order placed.',

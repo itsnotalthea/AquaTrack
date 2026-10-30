@@ -20,7 +20,10 @@
 
         <div class="mb-2">
             <label class="form-label" for="password">Password</label>
-            <input id="password" class="form-control" type="password" name="password" required autocomplete="current-password">
+            <div class="input-group">
+                <input id="password" class="form-control" type="password" name="password" required autocomplete="current-password">
+                <button type="button" class="btn btn-light border" data-password-toggle="password" aria-label="Show password">Show</button>
+            </div>
             @error('password') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
         </div>
 
@@ -29,8 +32,26 @@
             <label class="form-check-label" for="remember">Keep me logged in</label>
         </div>
 
-        <button class="btn btn-aqua w-100" type="submit">Log in</button>
+        <button class="btn btn-aqua w-100 snake-button" type="submit"><span class="snake-border" aria-hidden="true"></span>Log in</button>
     </form>
 
     <p class="small mt-3 mb-0 text-center">New customer? <a href="{{ route('register') }}">Create an account</a></p>
+
+    @push('scripts')
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                document.querySelectorAll('[data-password-toggle]').forEach(function (button) {
+                    var input = document.getElementById(button.dataset.passwordToggle);
+                    if (!input) return;
+
+                    button.addEventListener('click', function () {
+                        var showing = input.type === 'text';
+                        input.type = showing ? 'password' : 'text';
+                        button.textContent = showing ? 'Show' : 'Hide';
+                        button.setAttribute('aria-pressed', String(!showing));
+                    });
+                });
+            });
+        </script>
+    @endpush
 </x-guest-layout>

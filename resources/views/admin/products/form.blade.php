@@ -37,6 +37,25 @@
                                 </select>
                                 @error('unit') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
                             </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="fulfillment_type">Fulfillment</label>
+                                <select id="fulfillment_type" class="form-select" name="fulfillment_type" required>
+                                    @foreach (['refill' => 'Refill (container exchange / bring your own)', 'new_container' => 'New container', 'dispenser_rental' => 'Dispenser rental', 'stocked_item' => 'Stocked item'] as $value => $label)
+                                        <option value="{{ $value }}" @selected(old('fulfillment_type', $product->fulfillment_type ?? 'stocked_item') === $value)>{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                                @error('fulfillment_type') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="inventory_item_id">Linked inventory item</label>
+                                <select id="inventory_item_id" class="form-select" name="inventory_item_id">
+                                    <option value="">None</option>
+                                    @foreach ($inventoryItems as $item)
+                                        <option value="{{ $item->id }}" @selected((int) old('inventory_item_id', $product->inventory_item_id) === $item->id)>{{ str_replace('_', ' ', $item->name) }}</option>
+                                    @endforeach
+                                </select>
+                                @error('inventory_item_id') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                            </div>
                             <div class="col-12">
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" name="is_active" value="1" id="is_active"

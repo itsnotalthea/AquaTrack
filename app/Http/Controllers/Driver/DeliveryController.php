@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\ContainerTransaction;
 use App\Models\Delivery;
 use App\Models\Order;
+use App\Models\OrderStatusLog;
+use App\Services\InsufficientStockException;
 use App\Services\OrderFulfillment;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -52,28 +54,57 @@ class DeliveryController extends Controller
 
         $data = $request->validate([
             'status' => ['required', Rule::in($delivery->allowedTransitions())],
+            'failure_reason' => ['nullable', 'required_if:status,'.Delivery::STATUS_FAILED, 'string', 'max:500'],
         ], [
             'status.in' => 'That status change is not allowed from '.$delivery->status.'.',
+            'failure_reason.required_if' => 'Add a short reason so the customer can be informed.',
         ]);
 
         $next = $data['status'];
+        $previousStatus = $delivery->status;
         $order = $delivery->order;
 
-        DB::transaction(function () use ($delivery, $order, $next) {
-            $delivery->update([
-                'status' => $next,
-                'delivered_at' => $next === Delivery::STATUS_DELIVERED ? now() : $delivery->delivered_at,
-            ]);
+        if ($next === Delivery::STATUS_FAILED) {
+            app(OrderFulfillment::class)->fail($order, $data['failure_reason'], $delivery);
 
-            if ($next === Delivery::STATUS_DELIVERED && $order->status === Order::STATUS_OUT_FOR_DELIVERY) {
-                $order->update(['status' => Order::STATUS_DELIVERED]);
-            }
+            return back()->with('status', 'Delivery marked failed. Stock has been returned to the station.');
+        }
 
-            if ($next === Delivery::STATUS_RETURNED_TO_STATION) {
-                $order->update(['status' => Order::STATUS_COMPLETED]);
-                app(OrderFulfillment::class)->handle($order->fresh());
-            }
-        });
+        try {
+            DB::transaction(function () use ($delivery, $order, $next, $previousStatus) {
+                $delivery->update([
+                    'status' => $next,
+                    'delivered_at' => $next === Delivery::STATUS_DELIVERED ? now() : $delivery->delivered_at,
+                ]);
+
+                if ($next === Delivery::STATUS_DELIVERED && $order->status === Order::STATUS_OUT_FOR_DELIVERY) {
+                    $previous = $order->status;
+                    $order->update(['status' => Order::STATUS_DELIVERED]);
+                    OrderStatusLog::create([
+                        'order_id' => $order->id,
+                        'from_status' => $previous,
+                        'to_status' => Order::STATUS_DELIVERED,
+                        'user_id' => request()->user()?->id,
+                    ]);
+                }
+
+                // A failed run has already been reversed; closing the run must not
+                // complete or move stock a second time.
+                if ($next === Delivery::STATUS_RETURNED_TO_STATION && $previousStatus !== Delivery::STATUS_FAILED) {
+                    $previous = $order->status;
+                    $order->update(['status' => Order::STATUS_COMPLETED]);
+                    app(OrderFulfillment::class)->handle($order->fresh());
+                    OrderStatusLog::create([
+                        'order_id' => $order->id,
+                        'from_status' => $previous,
+                        'to_status' => Order::STATUS_COMPLETED,
+                        'user_id' => request()->user()?->id,
+                    ]);
+                }
+            });
+        } catch (InsufficientStockException $e) {
+            return back()->withErrors(['status' => $e->getMessage()]);
+        }
 
         return back()->with('status', 'Delivery marked '.str_replace('_', ' ', $next).'.');
     }
@@ -90,21 +121,33 @@ class DeliveryController extends Controller
         ]);
 
         $delivery->update(['returned_containers' => (int) $data['returned_containers']]);
+        $delivery->order->update(['returned_containers' => (int) $data['returned_containers']]);
 
         if ($delivery->status === Delivery::STATUS_DELIVERED) {
-            DB::transaction(function () use ($delivery, $data) {
-                ContainerTransaction::create([
-                    'customer_id' => $delivery->order->customer_id,
-                    'order_id' => $delivery->order_id,
-                    'type' => ContainerTransaction::TYPE_RETURN,
-                    'quantity' => (int) $data['returned_containers'],
-                ]);
+            try {
+                DB::transaction(function () use ($delivery, $data) {
+                    ContainerTransaction::create([
+                        'customer_id' => $delivery->order->customer_id,
+                        'order_id' => $delivery->order_id,
+                        'type' => ContainerTransaction::TYPE_RETURN,
+                        'quantity' => (int) $data['returned_containers'],
+                    ]);
 
-                $delivery->update(['status' => Delivery::STATUS_RETURNED_TO_STATION]);
+                    $delivery->update(['status' => Delivery::STATUS_RETURNED_TO_STATION]);
 
-                $delivery->order->update(['status' => Order::STATUS_COMPLETED]);
-                app(OrderFulfillment::class)->handle($delivery->order->fresh());
-            });
+                    $previous = $delivery->order->status;
+                    $delivery->order->update(['status' => Order::STATUS_COMPLETED]);
+                    app(OrderFulfillment::class)->handle($delivery->order->fresh());
+                    OrderStatusLog::create([
+                        'order_id' => $delivery->order_id,
+                        'from_status' => $previous,
+                        'to_status' => Order::STATUS_COMPLETED,
+                        'user_id' => request()->user()?->id,
+                    ]);
+                });
+            } catch (InsufficientStockException $e) {
+                return back()->withErrors(['returned_containers' => $e->getMessage()]);
+            }
 
             return back()->with('status', 'Return recorded and run closed.');
         }
