@@ -70,9 +70,31 @@ class StaffOrderTest extends TestCase
         $this->actingAs($this->staff())->get("/staff/orders/{$order->id}")
             ->assertOk()
             ->assertSee('ops-order', false)
-            ->assertSee('Update status')
+            ->assertSee('Next step')
             ->assertSee('Assign driver')
+            ->assertSee('Confirm order')
+            ->assertDontSee('<select class="form-select form-select-sm" id="status"', false)
             ->assertSee($order->customer->name);
+    }
+
+    public function test_staff_can_see_customer_order_change_history(): void
+    {
+        $order = $this->order();
+        $order->changeLogs()->create([
+            'user_id' => $order->customer_id,
+            'changes' => [
+                'Delivery address' => ['old' => 'Old address', 'new' => 'New address'],
+                'Notes' => ['old' => '—', 'new' => 'Call before arriving'],
+            ],
+        ]);
+
+        $this->actingAs($this->staff())->get("/staff/orders/{$order->id}")
+            ->assertOk()
+            ->assertSee('Customer changes')
+            ->assertSee('Delivery address')
+            ->assertSee('Old address')
+            ->assertSee('New address')
+            ->assertSee('Call before arriving');
     }
 
     public function test_customers_and_drivers_cannot_reach_staff_pages(): void

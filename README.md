@@ -63,6 +63,32 @@ Node and npm are not needed.
    php artisan serve
    ```
 
+## Database troubleshooting
+
+The application uses the MySQL database configured in `.env`; it does not
+silently switch to SQLite. If a database-dependent page shows the database
+unavailable screen:
+
+1. Make sure the MySQL service is running. On Windows, check **Services** for
+   `MySQL80`; starting the service may require administrator permission.
+2. Verify `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, and
+   `DB_PASSWORD` in `.env` match the local MySQL setup.
+3. From the project folder, check that Laravel can connect and that migrations
+   are current:
+
+   ```bash
+   php artisan db:show
+   php artisan migrate:status
+   ```
+
+4. Visit **http://127.0.0.1:8000/health/database**. A healthy response reports
+   `"database": "connected"`; an unavailable database returns HTTP 503 with a
+   generic diagnostic message.
+
+Restart `php artisan serve` after changing environment settings. The public
+home/about/services pages can render without MySQL, but account and
+order/inventory pages require it.
+
 ## Open it in a browser
 
 Go to **http://127.0.0.1:8000**

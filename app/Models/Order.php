@@ -106,6 +106,11 @@ class Order extends Model
         return $this->hasMany(OrderStatusLog::class)->latest();
     }
 
+    public function changeLogs(): HasMany
+    {
+        return $this->hasMany(OrderChangeLog::class)->latest();
+    }
+
     public function dispenserRentals(): HasMany
     {
         return $this->hasMany(DispenserRental::class);

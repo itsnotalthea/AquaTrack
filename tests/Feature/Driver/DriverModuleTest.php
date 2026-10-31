@@ -61,6 +61,24 @@ class DriverModuleTest extends TestCase
         $this->actingAs($mine)->put("/driver/deliveries/{$theirs->id}/status", ['status' => Delivery::STATUS_IN_TRANSIT])->assertForbidden();
     }
 
+    public function test_driver_sees_clear_next_step_actions_instead_of_a_status_dropdown(): void
+    {
+        $driver = $this->driver();
+        $order = Order::factory()->create(['order_type' => 'delivery', 'status' => Order::STATUS_OUT_FOR_DELIVERY]);
+        $delivery = Delivery::create([
+            'order_id' => $order->id,
+            'driver_id' => $driver->id,
+            'status' => Delivery::STATUS_IN_TRANSIT,
+        ]);
+
+        $this->actingAs($driver)->get("/driver/deliveries/{$delivery->id}")
+            ->assertOk()
+            ->assertSee('Next step')
+            ->assertSee('Mark as delivered')
+            ->assertSee('Report delivery issue')
+            ->assertDontSee('<select class="form-select mb-2" id="status"', false);
+    }
+
     public function test_driver_can_start_and_complete_a_run(): void
     {
         $driver = $this->driver();

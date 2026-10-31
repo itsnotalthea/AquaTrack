@@ -21,7 +21,7 @@ class CartController extends Controller
     {
         $data = $request->validate([
             'product_id' => ['required', 'integer', 'exists:products,id'],
-            'quantity' => ['required', 'integer', 'min:1', 'max:'.OrderPricing::MAX_QUANTITY],
+            'quantity' => ['required', 'integer', 'min:1'],
             'container_mode' => ['nullable', 'in:exchange,bring_your_own'],
         ]);
 
@@ -37,7 +37,7 @@ class CartController extends Controller
     public function update(Request $request, string $key): JsonResponse
     {
         $data = $request->validate([
-            'quantity' => ['required', 'integer', 'min:1', 'max:'.OrderPricing::MAX_QUANTITY],
+            'quantity' => ['required', 'integer', 'min:1'],
         ]);
 
         $this->cart->update($key, (int) $data['quantity']);

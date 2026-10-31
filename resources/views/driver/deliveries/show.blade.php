@@ -41,28 +41,51 @@
 
             <div class="col-lg-5">
                 <div class="px-card mb-3">
-                    <h2 class="h6">Update status</h2>
+                    <h2 class="h6">Next step</h2>
                     @php $next = $delivery->allowedTransitions(); @endphp
 
                     @if (empty($next))
                         <p class="mb-0 text-muted">This run is closed. Nothing further to do.</p>
                     @else
-                        <form method="POST" action="{{ route('driver.deliveries.status', $delivery) }}">
-                            @csrf
-                            @method('PUT')
-                            <label class="form-label" for="status">Move to</label>
-                            <select class="form-select mb-2" id="status" name="status" required>
-                                @foreach ($next as $status)
-                                    <option value="{{ $status }}">{{ str_replace('_', ' ', $status) }}</option>
-                                @endforeach
-                            </select>
-                            <div class="d-none mb-2" id="failureWrap">
-                                <label class="form-label" for="failure_reason">Why did it fail?</label>
-                                <input class="form-control" id="failure_reason" name="failure_reason" value="{{ old('failure_reason') }}" maxlength="500">
-                                @error('failure_reason') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-                            </div>
-                            <button class="btn btn-aqua w-100" type="submit">Update</button>
-                        </form>
+                        @php
+                            $deliveryActions = [
+                                'in_transit' => ['Start delivery', 'You are leaving the station with this order.'],
+                                'delivered' => ['Mark as delivered', 'Confirm the customer received the order.'],
+                                'failed' => ['Report delivery issue', 'Could not complete the delivery. Add a reason for staff and the customer.'],
+                                'returned_to_station' => ['Finish run', 'Confirm you have returned to the station.'],
+                            ];
+                        @endphp
+                        <p class="small text-muted mb-2">Select what happened on this delivery:</p>
+                        <div class="status-actions">
+                            @foreach ($next as $status)
+                                @php
+                                    [$actionLabel, $actionDescription] = $deliveryActions[$status] ?? [str_replace('_', ' ', ucfirst($status)), 'Update the delivery status.'];
+                                    $isFailure = $status === \App\Models\Delivery::STATUS_FAILED;
+                                    $isFinish = $status === \App\Models\Delivery::STATUS_RETURNED_TO_STATION;
+                                @endphp
+                                <form method="POST" action="{{ route('driver.deliveries.status', $delivery) }}"
+                                      class="status-action {{ $isFailure ? 'status-action-danger' : '' }}"
+                                      @if ($isFinish) data-confirm-submit="Finish this run and return to the station?" @endif>
+                                    @csrf
+                                    @method('PUT')
+                                    <input type="hidden" name="status" value="{{ $status }}">
+                                    <div class="status-action-copy">
+                                        <strong>{{ $actionLabel }}</strong>
+                                        <span>{{ $actionDescription }}</span>
+                                    </div>
+                                    @if ($isFailure)
+                                        <div class="mt-2">
+                                            <label class="form-label" for="failure_reason">Reason for delivery issue</label>
+                                            <input class="form-control form-control-sm" id="failure_reason" name="failure_reason"
+                                                   value="{{ old('failure_reason') }}" maxlength="500" required>
+                                            @error('failure_reason') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                                        </div>
+                                    @endif
+                                    <button class="btn {{ $isFailure ? 'btn-outline-danger' : 'btn-aqua' }} btn-sm w-100 mt-2"
+                                            type="submit">{{ $actionLabel }}</button>
+                                </form>
+                            @endforeach
+                        </div>
                     @endif
                 </div>
 
@@ -96,23 +119,14 @@
 
     @push('scripts')
         <script>
-            (function () {
-                var status = document.getElementById('status');
-                var wrap = document.getElementById('failureWrap');
-
-                function refresh() {
-                    if (!status || !wrap) {
-                        return;
+            document.querySelectorAll('form[data-confirm-submit]').forEach(function (form) {
+                form.addEventListener('submit', function (event) {
+                    if (!window.confirm(form.dataset.confirmSubmit)) {
+                        event.preventDefault();
+                        event.stopImmediatePropagation();
                     }
-
-                    wrap.classList.toggle('d-none', status.value !== 'failed');
-                }
-
-                if (status) {
-                    status.addEventListener('change', refresh);
-                    refresh();
-                }
-            })();
+                });
+            });
         </script>
     @endpush
 </x-app-layout>

@@ -14,6 +14,9 @@ use App\Http\Controllers\Staff\OperationsController;
 use App\Http\Controllers\Staff\OrderController as StaffOrderController;
 use App\Http\Controllers\Staff\ReportController;
 use App\Models\User;
+use App\Support\DatabaseFailure;
+use Illuminate\Database\LostConnectionException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
 $marketingPage = fn (string $view) => auth()->check()
@@ -23,6 +26,27 @@ $marketingPage = fn (string $view) => auth()->check()
 Route::get('/', fn () => $marketingPage('home'))->name('home');
 Route::get('/about', fn () => $marketingPage('about'))->name('about');
 Route::get('/services', fn () => $marketingPage('services'))->name('services');
+
+Route::get('/health/database', function () {
+    try {
+        DB::connection()->select('select 1');
+    } catch (PDOException|LostConnectionException $exception) {
+        if (! DatabaseFailure::isUnavailable($exception)) {
+            throw $exception;
+        }
+
+        return response()->json([
+            'status' => 'error',
+            'database' => 'unavailable',
+            'message' => DatabaseFailure::message(),
+        ], 503);
+    }
+
+    return response()->json([
+        'status' => 'ok',
+        'database' => 'connected',
+    ]);
+})->name('health.database');
 
 Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
@@ -65,6 +89,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/orders/create', [CustomerOrderController::class, 'create'])->name('orders.create');
         Route::post('/orders', [CustomerOrderController::class, 'store'])->name('orders.store');
         Route::get('/orders/{order}', [CustomerOrderController::class, 'show'])->name('orders.show');
+        Route::get('/orders/{order}/edit', [CustomerOrderController::class, 'edit'])->name('orders.edit');
+        Route::put('/orders/{order}', [CustomerOrderController::class, 'update'])->name('orders.update');
 
         Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
         Route::post('/cart', [CartController::class, 'store'])->name('cart.store');

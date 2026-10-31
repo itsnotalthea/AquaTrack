@@ -13,6 +13,7 @@ use App\Models\Payment;
 use App\Models\Product;
 use App\Models\Reminder;
 use App\Models\User;
+use App\Support\DatabaseFailure;
 use Database\Seeders\InventorySeeder;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Http\Kernel;
@@ -21,6 +22,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
 /**
@@ -139,21 +141,16 @@ class QaChecklistTest extends TestCase
     }
 
     // 6 and 7
-    public function test_refill_quantity_capped_and_priced_per_gallon(): void
+    public function test_refill_quantity_is_not_capped_and_priced_per_gallon(): void
     {
         $user = $this->customer();
 
         $this->actingAs($user)->post('/customer/orders', [
             'product_id' => $this->refill()->id, 'quantity' => 6, 'order_type' => 'pickup',
             'preferred_date' => now()->addDay()->toDateString(), 'payment_method' => 'cash',
-        ])->assertSessionHasErrors('quantity');
-
-        $this->actingAs($user)->post('/customer/orders', [
-            'product_id' => $this->refill()->id, 'quantity' => 4, 'order_type' => 'pickup',
-            'preferred_date' => now()->addDay()->toDateString(), 'payment_method' => 'cash',
         ])->assertSessionHasNoErrors();
 
-        $this->assertSame('100.00', Order::first()->total_amount);
+        $this->assertSame('150.00', Order::first()->total_amount);
     }
 
     public function test_delivery_fee_applies_only_to_delivery_orders(): void
@@ -451,6 +448,62 @@ class QaChecklistTest extends TestCase
         $response->assertOk()
             ->assertSee('Water refills')
             ->assertSee('Current prices and availability are shown when you place an order.');
+    }
+
+    public function test_database_health_endpoint_returns_service_unavailable_when_mysql_is_down(): void
+    {
+        $originalConnection = config('database.default');
+        config([
+            'database.default' => 'mysql',
+            'database.connections.mysql.host' => '127.0.0.1',
+            'database.connections.mysql.port' => 1,
+        ]);
+        DB::purge('mysql');
+
+        try {
+            $response = $this->getJson('/health/database');
+        } finally {
+            DB::purge('mysql');
+            config(['database.default' => $originalConnection]);
+        }
+
+        $response->assertStatus(503)
+            ->assertJsonPath('status', 'error')
+            ->assertJsonPath('database', 'unavailable')
+            ->assertJsonPath('message', DatabaseFailure::message());
+    }
+
+    public function test_database_connection_failure_shows_an_actionable_503_page(): void
+    {
+        $originalConnection = config('database.default');
+        config([
+            'database.default' => 'mysql',
+            'database.connections.mysql.host' => '127.0.0.1',
+            'database.connections.mysql.port' => 1,
+        ]);
+        DB::purge('mysql');
+        Route::get('/_test/database-probe', fn () => DB::table('users')->count());
+
+        try {
+            $response = $this->get('/_test/database-probe');
+        } finally {
+            DB::purge('mysql');
+            config(['database.default' => $originalConnection]);
+        }
+
+        $response->assertStatus(503)
+            ->assertSee('Database temporarily unavailable')
+            ->assertSee('start the MySQL service')
+            ->assertDontSee('SQLSTATE')
+            ->assertDontSee('aquatrack');
+    }
+
+    public function test_database_schema_errors_are_not_mislabeled_as_connection_outages(): void
+    {
+        Route::get('/_test/database-schema-error', fn () => DB::table('missing_runtime_probe')->count());
+
+        $this->get('/_test/database-schema-error')
+            ->assertStatus(500);
     }
 
     public function test_customer_order_modals_render_outside_the_animated_main(): void

@@ -671,6 +671,18 @@ footer a { color: var(--aq-accent); }
 .ops-order .form-control { padding: .45rem .7rem; font-size: .9rem; }
 .ops-order .table > :not(caption) > * > * { padding: .45rem .5rem; }
 .ops-order .status-log { font-size: .84rem; padding: .4rem 0; }
+.status-actions { display: grid; gap: .65rem; }
+.status-action {
+    padding: .8rem;
+    border: 1px solid var(--aq-border);
+    border-radius: var(--aq-radius);
+    background: var(--aq-surface-2);
+}
+.status-action-copy { display: grid; gap: .15rem; }
+.status-action-copy strong { color: var(--aq-text); }
+.status-action-copy span { color: var(--aq-muted); font-size: .84rem; line-height: 1.4; }
+.status-action-danger { border-color: color-mix(in srgb, var(--aq-danger) 45%, var(--aq-border)); }
+.status-action-danger .status-action-copy strong { color: var(--aq-danger); }
 
 .ops-orders { padding-top: 0 !important; }
 .ops-orders .table > :not(caption) > * > * { padding: .5rem .6rem; }

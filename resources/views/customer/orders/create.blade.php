@@ -126,8 +126,7 @@
                         <p class="price mb-2" data-add-price></p>
                         <div class="mb-3">
                             <label class="form-label" for="addQuantity">Quantity</label>
-                            <input id="addQuantity" class="form-control" type="number" name="quantity" min="1" max="{{ $maxQuantity }}" value="1" required>
-                            <div class="form-text">Maximum {{ $maxQuantity }} per product per order.</div>
+                            <input id="addQuantity" class="form-control" type="number" name="quantity" min="1" value="1" required>
                         </div>
                         <div data-container-choice>
                             <span class="form-label d-block">Container</span>

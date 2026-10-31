@@ -127,7 +127,21 @@ class ApiAccessTest extends TestCase
         $this->assertDatabaseHas('orders', ['customer_id' => $customer->id, 'total_amount' => 75]);
     }
 
-    public function test_api_order_validation_returns_422_with_errors(): void
+    public function test_api_order_validation_returns_422_for_zero_quantity(): void
+    {
+        $customer = User::factory()->customer()->create();
+        $product = Product::where('unit', 'gallon')->first();
+
+        $this->actingAs($customer)->postJson('/api/orders', [
+            'product_id' => $product->id,
+            'quantity' => 0,
+            'order_type' => 'pickup',
+            'preferred_date' => now()->addDay()->toDateString(),
+            'payment_method' => 'cash',
+        ])->assertStatus(422)->assertJsonValidationErrors('quantity');
+    }
+
+    public function test_api_customer_can_order_more_than_five_of_a_product(): void
     {
         $customer = User::factory()->customer()->create();
         $product = Product::where('unit', 'gallon')->first();
@@ -138,7 +152,8 @@ class ApiAccessTest extends TestCase
             'order_type' => 'pickup',
             'preferred_date' => now()->addDay()->toDateString(),
             'payment_method' => 'cash',
-        ])->assertStatus(422)->assertJsonValidationErrors('quantity');
+        ])->assertCreated()
+            ->assertJsonPath('total_amount', 225);
     }
 
     // only customers may place orders through the api

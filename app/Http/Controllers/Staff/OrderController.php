@@ -54,7 +54,7 @@ class OrderController extends Controller
 
     public function show(Order $order): View
     {
-        $order->load(['customer', 'items.product', 'delivery.driver', 'payment.recorder', 'dispenserRentals', 'statusLogs.user']);
+        $order->load(['customer', 'items.product', 'delivery.driver', 'payment.recorder', 'dispenserRentals', 'statusLogs.user', 'changeLogs.user']);
 
         return view('staff.orders.show', [
             'order' => $order,

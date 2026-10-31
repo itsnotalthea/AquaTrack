@@ -2,7 +2,12 @@
     <x-slot name="title">Order #{{ $order->id }} | AquaTrack</x-slot>
 
     <div class="container section">
-        <a class="btn btn-light rounded-0 fw-bold px-3 mb-3" href="{{ route('customer.orders.index') }}">&larr; My orders</a>
+        <div class="d-flex flex-wrap gap-2 mb-3">
+            <a class="btn btn-light rounded-0 fw-bold px-3" href="{{ route('customer.orders.index') }}">&larr; My orders</a>
+            @if ($order->status === \App\Models\Order::STATUS_PENDING)
+                <a class="btn btn-aqua px-3" href="{{ route('customer.orders.edit', $order) }}">Edit order</a>
+            @endif
+        </div>
 
         @if (session('status')) <div class="alert alert-success rounded-0">{{ session('status') }}</div> @endif
 
@@ -110,12 +115,10 @@
                     </div>
                 @endif
 
-                @if ($order->notes)
-                    <div class="px-card">
-                        <h2 class="h6">Notes</h2>
-                        <p class="mb-0">{{ $order->notes }}</p>
-                    </div>
-                @endif
+                <div class="px-card">
+                    <h2 class="h6">Notes</h2>
+                    <p class="mb-0">{{ $order->notes ?: 'No notes added.' }}</p>
+                </div>
             </div>
         </div>
     </div>

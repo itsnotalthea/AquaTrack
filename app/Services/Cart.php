@@ -68,9 +68,9 @@ class Cart
             throw ValidationException::withMessages(['cart' => 'That product is no longer available.']);
         }
 
-        if ($quantity < 1 || $quantity > OrderPricing::MAX_QUANTITY) {
+        if ($quantity < 1) {
             throw ValidationException::withMessages([
-                'quantity' => 'Choose between 1 and '.OrderPricing::MAX_QUANTITY.' units.',
+                'quantity' => 'Choose at least 1 unit.',
             ]);
         }
 
@@ -84,12 +84,6 @@ class Cart
         $items = session(self::KEY, []);
         $existing = (int) ($items[$key]['quantity'] ?? 0);
         $next = $existing + $quantity;
-
-        if ($next > OrderPricing::MAX_QUANTITY) {
-            throw ValidationException::withMessages([
-                'quantity' => 'Your cart already has the maximum '.OrderPricing::MAX_QUANTITY.' of '.$product->name.'.',
-            ]);
-        }
 
         $available = $this->stock->availableFor($product, $mode);
 
@@ -116,9 +110,9 @@ class Cart
             return;
         }
 
-        if ($quantity < 1 || $quantity > OrderPricing::MAX_QUANTITY) {
+        if ($quantity < 1) {
             throw ValidationException::withMessages([
-                'quantity' => 'Choose between 1 and '.OrderPricing::MAX_QUANTITY.' units.',
+                'quantity' => 'Choose at least 1 unit.',
             ]);
         }
 

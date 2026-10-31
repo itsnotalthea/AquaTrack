@@ -7,8 +7,6 @@ use App\Models\Setting;
 
 class OrderPricing
 {
-    public const MAX_QUANTITY = 5;
-
     // delivery fee only applies to delivery orders
     public static function deliveryFee(): float
     {

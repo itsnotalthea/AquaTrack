@@ -31,10 +31,10 @@ class PlaceOrder
         $data = $request->validate([
             'items' => ['required_without:product_id', 'array', 'min:1', 'max:20'],
             'items.*.product_id' => ['required', Rule::exists('products', 'id')->where('is_active', true)],
-            'items.*.quantity' => ['required', 'integer', 'min:1', 'max:'.OrderPricing::MAX_QUANTITY],
+            'items.*.quantity' => ['required', 'integer', 'min:1'],
             'items.*.container_mode' => ['nullable', Rule::in([Product::CONTAINER_EXCHANGE, Product::CONTAINER_BRING_YOUR_OWN])],
             'product_id' => ['required_without:items', Rule::exists('products', 'id')->where('is_active', true)],
-            'quantity' => ['required_without:items', 'integer', 'min:1', 'max:'.OrderPricing::MAX_QUANTITY],
+            'quantity' => ['required_without:items', 'integer', 'min:1'],
             'order_type' => ['required', Rule::in([Order::TYPE_DELIVERY, Order::TYPE_PICKUP])],
             'delivery_address' => ['nullable', 'required_if:order_type,'.Order::TYPE_DELIVERY, 'string', 'max:500'],
             'barangay' => ['nullable', 'string', Rule::in(Barangay::names())],
@@ -43,14 +43,12 @@ class PlaceOrder
             'payment_reference' => ['nullable', 'required_if:payment_method,gcash', 'required_if:payment_method,maya', 'string', 'max:120'],
             'payment_proof' => ['nullable', 'file', 'image', 'mimes:jpg,jpeg,png', 'max:2048'],
             'container_swap' => ['boolean'],
-            'container_swap_qty' => ['nullable', 'required_if:container_swap,1', 'integer', 'min:1', 'max:'.(OrderPricing::MAX_QUANTITY * 4)],
+            'container_swap_qty' => ['nullable', 'required_if:container_swap,1', 'integer', 'min:1'],
             'notes' => ['nullable', 'string', 'max:1000'],
             'weekly_reminder' => ['boolean'],
             'use_cart' => ['boolean'],
         ], [
             'items.required_without' => 'Add at least one product before checking out.',
-            'items.*.quantity.max' => 'You can order at most '.OrderPricing::MAX_QUANTITY.' per product per order.',
-            'quantity.max' => 'You can order at most '.OrderPricing::MAX_QUANTITY.' per product per order.',
             'container_swap_qty.required_if' => 'Enter how many containers you want to swap.',
             'delivery_address.required_if' => 'A delivery address is required for delivery orders.',
         ]);
@@ -180,14 +178,6 @@ class PlaceOrder
                     'quantity' => (int) $item['quantity'],
                     'container_mode' => $mode,
                 ];
-            }
-        }
-
-        foreach ($lines as $line) {
-            if ($line['quantity'] > OrderPricing::MAX_QUANTITY) {
-                throw ValidationException::withMessages([
-                    'items' => 'You can order at most '.OrderPricing::MAX_QUANTITY.' of '.$line['product']->name.' per order.',
-                ]);
             }
         }
 

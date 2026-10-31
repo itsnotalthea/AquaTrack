@@ -45,35 +45,81 @@
                 </div>
 
                 <div class="px-card compact mb-3">
-                    <h2 class="h6">Update status</h2>
+                    <h2 class="h6">Next step</h2>
                     @php $next = $order->allowedTransitions(); @endphp
 
                     @if (empty($next))
                         <p class="mb-0 text-muted small">This order is {{ str_replace('_', ' ', $order->status) }} and has no further transitions.</p>
                     @else
-                        <form method="POST" action="{{ route('operations.orders.status', $order) }}" data-ajax-post class="d-flex flex-wrap align-items-end gap-2">
-                            @csrf
-                            @method('PUT')
-                            <div class="flex-grow-1" style="min-width: 11rem;">
-                                <label class="form-label" for="status">Move to</label>
-                                <select class="form-select form-select-sm" id="status" name="status" required>
-                                    @foreach ($next as $status)
-                                        <option value="{{ $status }}" @selected(old('status') === $status)>{{ str_replace('_', ' ', $status) }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div class="flex-grow-1 d-none" id="failureWrap" style="min-width: 13rem;">
-                                <label class="form-label" for="failure_reason">Failure reason</label>
-                                <input class="form-control form-control-sm" id="failure_reason" name="failure_reason" value="{{ old('failure_reason') }}" maxlength="500">
-                            </div>
-                            <div>
-                                <button class="btn btn-aqua btn-sm px-3" type="submit">Update</button>
-                            </div>
-                        </form>
-                        @error('status') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
-                        @error('failure_reason') <div class="invalid-feedback d-block">{{ $message }}</div> @enderror
+                        @php
+                            $statusActions = [
+                                'confirmed' => ['Confirm order', 'Accept this order and move it into the fulfillment queue.'],
+                                'preparing' => ['Start preparing', 'Mark that the station is preparing this order.'],
+                                'out_for_delivery' => ['Dispatch order', 'Start the delivery run. The order needs an assigned driver.'],
+                                'delivered' => ['Mark delivered', 'Record that the customer received the order.'],
+                                'delivery_failed' => ['Report delivery issue', 'Record an unsuccessful delivery and provide a reason.'],
+                                'ready_for_pickup' => ['Ready for pickup', 'Let the customer know the pickup is ready.'],
+                                'picked_up' => ['Mark picked up', 'Record that the customer collected the order.'],
+                                'completed' => ['Complete order', 'Close the order after fulfillment is finished.'],
+                                'cancelled' => ['Cancel order', 'Cancel this order. This cannot be undone.'],
+                            ];
+                        @endphp
+                        <p class="small text-muted mb-2">Choose the action that matches what has happened:</p>
+                        <div class="status-actions">
+                            @foreach ($next as $status)
+                                @php
+                                    [$actionLabel, $actionDescription] = $statusActions[$status] ?? [str_replace('_', ' ', ucfirst($status)), 'Update the order status.'];
+                                    $isDanger = $status === \App\Models\Order::STATUS_CANCELLED;
+                                    $isFailure = $status === \App\Models\Order::STATUS_DELIVERY_FAILED;
+                                @endphp
+                                <form method="POST" action="{{ route('operations.orders.status', $order) }}"
+                                      data-ajax-post @if ($isDanger) data-confirm-submit="Cancel this order?" @endif
+                                      class="status-action {{ $isDanger ? 'status-action-danger' : '' }}">
+                                    @csrf
+                                    @method('PUT')
+                                    <input type="hidden" name="status" value="{{ $status }}">
+                                    <div class="status-action-copy">
+                                        <strong>{{ $actionLabel }}</strong>
+                                        <span>{{ $actionDescription }}</span>
+                                    </div>
+                                    @if ($isFailure)
+                                        <div class="mt-2">
+                                            <label class="form-label" for="failure_reason">Reason for failed delivery</label>
+                                            <input class="form-control form-control-sm" id="failure_reason" name="failure_reason"
+                                                   value="{{ old('failure_reason') }}" maxlength="500" required>
+                                        </div>
+                                    @endif
+                                    <button class="btn {{ $isDanger ? 'btn-outline-danger' : 'btn-aqua' }} btn-sm px-3 mt-2"
+                                            type="submit">{{ $isDanger ? 'Cancel order' : $actionLabel }}</button>
+                                </form>
+                            @endforeach
+                        </div>
+                        @error('status') <div class="invalid-feedback d-block mt-2">{{ $message }}</div> @enderror
+                        @error('failure_reason') <div class="invalid-feedback d-block mt-2">{{ $message }}</div> @enderror
                     @endif
                 </div>
+
+                @if ($order->changeLogs->isNotEmpty())
+                    <div class="px-card compact mb-3">
+                        <h2 class="h6 mb-2">Customer changes</h2>
+                        @foreach ($order->changeLogs as $changeLog)
+                            <div class="border-bottom py-2 small">
+                                <div class="d-flex justify-content-between gap-3">
+                                    <strong>{{ $changeLog->user?->name ?? 'Customer' }}</strong>
+                                    <span class="text-muted text-nowrap">{{ $changeLog->created_at->format('M d, Y g:i A') }}</span>
+                                </div>
+                                @foreach ($changeLog->changes as $label => $change)
+                                    <div class="mt-1">
+                                        <span class="text-muted">{{ $label }}:</span>
+                                        <span>{{ $change['old'] }}</span>
+                                        <x-icon name="arrow-right" />
+                                        <span>{{ $change['new'] }}</span>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @endforeach
+                    </div>
+                @endif
 
                 <div class="px-card compact">
                     <h2 class="h6 mb-2">Status history</h2>
@@ -252,28 +298,14 @@
 
     @push('scripts')
         <script>
-            (function () {
-                var status = document.getElementById('status');
-                var failureWrap = document.getElementById('failureWrap');
-                var failure = document.getElementById('failure_reason');
-
-                function refreshFailure() {
-                    if (!status || !failureWrap) {
-                        return;
+            document.querySelectorAll('form[data-confirm-submit]').forEach(function (form) {
+                form.addEventListener('submit', function (event) {
+                    if (!window.confirm(form.dataset.confirmSubmit)) {
+                        event.preventDefault();
+                        event.stopImmediatePropagation();
                     }
-
-                    var failed = status.value === 'delivery_failed';
-                    failureWrap.classList.toggle('d-none', !failed);
-                    if (failure) {
-                        failure.required = failed;
-                    }
-                }
-
-                if (status) {
-                    status.addEventListener('change', refreshFailure);
-                    refreshFailure();
-                }
-            })();
+                });
+            });
         </script>
     @endpush
 </x-app-layout>

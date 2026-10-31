@@ -101,13 +101,28 @@ class PlaceOrderTest extends TestCase
         $this->assertSame('70.00', Order::first()->total_amount);
     }
 
-    public function test_quantity_cannot_exceed_five(): void
+    public function test_customer_can_order_more_than_five_of_a_product(): void
     {
         $this->actingAs($this->customer())
             ->post('/customer/orders', $this->payload(['quantity' => 6]))
-            ->assertSessionHasErrors('quantity');
+            ->assertSessionHasNoErrors();
 
-        $this->assertSame(0, Order::count());
+        $this->assertSame(6, Order::first()->items()->value('quantity'));
+    }
+
+    public function test_cart_accepts_more_than_five_of_a_product(): void
+    {
+        $product = $this->product('5-Gallon Refill', 25.00);
+
+        $this->actingAs($this->customer())
+            ->postJson('/customer/cart', [
+                'product_id' => $product->id,
+                'quantity' => 6,
+                'container_mode' => 'exchange',
+            ])
+            ->assertOk()
+            ->assertJsonPath('count', 6)
+            ->assertJsonPath('items.0.quantity', 6);
     }
 
     public function test_quantity_must_be_at_least_one(): void
@@ -283,5 +298,75 @@ class PlaceOrderTest extends TestCase
         $this->actingAs($user)->post('/customer/orders', $this->payload());
 
         $this->assertSame(0, Reminder::where('customer_id', $user->id)->count());
+    }
+
+    public function test_customer_can_edit_a_pending_order_and_the_changes_are_logged(): void
+    {
+        $customer = $this->customer();
+        $product = $this->product('5-Gallon Refill', 25.00);
+        $this->actingAs($customer)->post('/customer/orders', $this->payload([
+            'product_id' => $product->id,
+            'quantity' => 2,
+            'delivery_address' => 'Old address',
+            'order_type' => 'delivery',
+        ]))->assertSessionHasNoErrors();
+        $order = Order::firstOrFail();
+
+        $this->actingAs($customer)->get("/customer/orders/{$order->id}/edit")
+            ->assertOk()
+            ->assertSee('Edit order #'.$order->id);
+
+        $this->actingAs($customer)->put("/customer/orders/{$order->id}", [
+            'items' => [[
+                'product_id' => $product->id,
+                'quantity' => 7,
+                'container_mode' => 'bring_your_own',
+            ]],
+            'order_type' => 'delivery',
+            'delivery_address' => 'Updated address',
+            'barangay' => 'Barangka',
+            'preferred_date' => now()->addDays(3)->toDateString(),
+            'notes' => 'Please call on arrival.',
+        ])->assertSessionHasNoErrors();
+
+        $order->refresh();
+        $this->assertSame('Updated address', $order->delivery_address);
+        $this->assertSame('Please call on arrival.', $order->notes);
+        $this->assertSame(7, $order->items()->value('quantity'));
+        $this->assertSame('175.00', $order->subtotal);
+        $this->assertDatabaseHas('order_change_logs', [
+            'order_id' => $order->id,
+            'user_id' => $customer->id,
+        ]);
+        $this->assertSame('Updated address', $order->changeLogs()->latest()->first()->changes['Delivery address']['new']);
+    }
+
+    public function test_customer_cannot_edit_an_order_after_it_is_confirmed(): void
+    {
+        $customer = $this->customer();
+        $this->actingAs($customer)->post('/customer/orders', $this->payload())->assertSessionHasNoErrors();
+        $order = Order::firstOrFail();
+        $order->update(['status' => Order::STATUS_CONFIRMED]);
+
+        $this->actingAs($customer)->get("/customer/orders/{$order->id}/edit")->assertForbidden();
+        $this->actingAs($customer)->put("/customer/orders/{$order->id}", [
+            'items' => [[
+                'product_id' => $order->items()->value('product_id'),
+                'quantity' => 2,
+            ]],
+            'order_type' => 'pickup',
+            'preferred_date' => now()->addDay()->toDateString(),
+        ])->assertForbidden();
+    }
+
+    public function test_customer_cannot_edit_another_customers_order(): void
+    {
+        $owner = $this->customer();
+        $otherCustomer = $this->customer();
+        $this->actingAs($owner)->post('/customer/orders', $this->payload())->assertSessionHasNoErrors();
+        $order = Order::firstOrFail();
+
+        $this->actingAs($otherCustomer)->get("/customer/orders/{$order->id}/edit")->assertNotFound();
+        $this->actingAs($otherCustomer)->put("/customer/orders/{$order->id}", [])->assertNotFound();
     }
 }
